@@ -1,0 +1,189 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <title>Certificate</title>
+    <style>
+        .container {
+            position: relative;
+            width: 60%;
+            margin: auto;
+            text-align: center;
+        }
+
+        .certificate-img {
+            width: 100%;
+            height: auto;
+            margin-top: 20px;
+        }
+
+        .text-overlay {
+            position: absolute;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: bold;
+            color: black;
+            font-family: sans-serif;
+        }
+
+        .username {
+            top: 30%; 
+            font-family: sans-serif;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .tec-no {
+            top: 30.9%; 
+            font-family: sans-serif;
+            left: 20.5%;
+            transform: translate(-50%, -50%);
+        }
+
+        .district {
+            top: 56%;
+            font-family: sans-serif;
+            left: 24%;
+            transform: translate(-50%, -50%);
+            font-size: 9px;
+        }
+
+        .name {
+            top: 47%;
+            font-family: sans-serif;
+            left: 49%;
+            transform: translate(-50%, -50%);
+        }
+
+        .state {
+            top: 56%;
+            font-family: sans-serif;
+            left: 49%;
+            transform: translate(-50%, -50%);
+        }
+
+        .father {
+            top: 51.5%;
+            font-family: sans-serif;
+            left: 47%;
+            transform: translate(-50%, -50%);
+        }
+
+        .profile-img {
+            top: 37.5%;
+            left: 80.7%;
+            width: 100px;
+            height: 113px;
+            position: absolute;
+            transform: translate(-50%, -50%);
+        }
+        .place {
+            top: 77%;
+            font-family: sans-serif;
+            left: 18%;
+            transform: translate(-50%, -50%);
+            font-size: 9px;
+            font-weight: bold;
+        }
+        .date {
+            top: 79.5%;
+            font-family: sans-serif;
+            left: 18%;
+            transform: translate(-50%, -50%);
+            font-size: 8px;
+            font-weight: bold;
+        }
+        .local_body {
+            top: 56%;
+            font-family: sans-serif;
+            left: 71%;
+            font-size: 9px;
+            transform: translate(-50%, -50%);
+        }
+
+        .ward {
+            top: 56%;
+            font-family: sans-serif;
+            left: 87%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body style="background-color: black;">
+    <div class="container">
+        <img src="{% static 'web/file/images/SS1.jpg' %}" alt="Certificate" id="certificate-img" class="certificate-img">
+        
+        <!-- Dynamic Data Over Image -->
+        <div class="text-overlay tec-no">{{ request.user.username }}</div>
+        <div class="text-overlay name">{{ current_user.user.owner_centre }}</div>
+        <div class="text-overlay district">{{ current_user.user.district }}</div>
+
+        <div class="text-overlay local_body">
+            {% if temp_user.panchayat %}
+                {{ temp_user.panchayat }}
+            {% elif current_user.user.taluk %}
+                {{ current_user.user.taluk }}
+            {% else %}
+                Panchayath
+            {% endif %}
+        </div>
+        <div class="text-overlay ward">
+            {% if current_user.user.ward_number %}
+                {{ current_user.user.ward_number }}
+            {% else %}
+                {{ temp_user.ward_number }}
+            {% endif %}
+        </div>
+
+        <div class="text-overlay state">
+            {% if current_user.user.state %}
+                {{ current_user.user.state }}
+            {% else %}
+                {{ temp_user.state }}
+            {% endif %}
+        </div>
+        <div class="text-overlay father">{{ current_user.user.another_name }}</div>
+        <div class="text-overlay place">Kalanjoor</div>
+        <div class="text-overlay date">{{ current_user.time }}</div>
+        <div class="text-overlay profile-img">
+            {% if current_user.user.photo %}
+                <img src="{{ current_user.user.photo.url }}" alt="" class="profile-img">
+            {% else %}
+                <img src="{% static 'web/file/images/img-17.jpg' %}" alt="" class="profile-img">
+            {% endif %}
+        </div>
+
+        <button class="btn btn-success" style="margin: 20px;" onclick="downloadCertificate()">Download Certificate</button>
+    </div>
+</body>
+<script>
+    async function downloadCertificate() {
+    const { jsPDF } = window.jspdf;
+
+    // Select the entire certificate container
+    const certificateElement = document.querySelector(".container");
+
+    // Convert to canvas using html2canvas
+    const canvas = await html2canvas(certificateElement, { scale: 2 });
+    const imgData = canvas.toDataURL("image/png");
+
+    // Create a new PDF
+    const pdf = new jsPDF("l", "mm", "a4"); // Landscape mode for better fit
+    const imgWidth = 297; // A4 landscape width
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    // Add the image to the PDF
+    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+    pdf.save("certificate.pdf"); 
+}
+
+</script>
+</html>
