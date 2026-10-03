@@ -1,0 +1,721 @@
+{% extends "web/home/base.html" %}
+
+{% load static %}
+
+{% block content %}
+
+<style>
+  .video-container {
+    position: relative;
+    max-width: 1120px;
+    margin: auto;
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    margin-top: 50px;
+}
+
+iframe {
+    width: 100%;
+    height: 450px;
+    border-radius: 10px;
+}
+
+h5 {
+    color: #fff;
+    margin-top: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.video-controls {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.video-controls button {
+    background: #ff9800;
+    color: #fff;
+    border: none;
+    font-size: 16px;
+    padding: 10px 20px;
+    border-radius: 5px;
+    transition: 0.3s ease-in-out;
+}
+
+.video-controls button:hover {
+    background: #e68900;
+    transform: scale(1.1);
+}
+</style>
+
+<body>
+
+  <div class="hero_area">
+    <!-- header section strats -->
+
+    <!-- end header section -->
+    <!-- slider section -->
+    <section class="slider_section ">
+      <div id="customCarousel1" class="carousel slide" data-ride="carousel">
+        <div class="carousel-inner">
+          <div class="carousel-item active">
+            <div class="">
+              <div class="row mt-0 pt-0">
+                <div class="col-md-12">
+                  <div class="img-box">
+                    <img src="{% static 'web/assets2/images/slide-1-crop.jpg' %}" alt="">
+                  </div>
+                </div>
+                <!-- <div class="col-md-6">
+                  <div class="detail-box">
+                    <h1 style="text-transform: uppercase;">
+						Trusted <br> Entrepreneur Certificate [TEC]
+                    </h1>
+                    <p>
+
+					</p>
+                    <div class="btn-box">
+                      <a href="{% url 'exam:vlcregistrationdoc' %}" class="btn1">
+                        Register Now
+                      </a>
+                    </div>
+                  </div>
+                </div> -->
+              </div>
+            </div>
+          </div>
+          <div class="carousel-item ">
+            <div class="">
+              <div class="row mt-0 pt-0">
+                <div class="col-md-12">
+                  <div class="img-box">
+                    <img src="{% static 'web/assets2/images/slide-2(2)-crop.jpg' %}" alt="">
+                  </div>
+                </div>
+                <!-- <div class="col-md-6">
+                  <div class="detail-box">
+                    <h1 style="text-transform: uppercase;">
+						Trusted <br> Entrepreneur Certificate [TEC]
+                    </h1>
+                    <p>
+
+					</p>
+                    <div class="btn-box">
+                      <a href="{% url 'exam:vlcregistrationdoc' %}" class="btn1">
+                        Register Now
+                      </a>
+                    </div>
+                  </div>
+                </div> -->
+              </div>
+            </div>
+          </div>
+          <div class="carousel-item ">
+            <div class="">
+              <div class="row mt-0 pt-0">
+                <div class="col-md-12">
+                  <div class="img-box">
+                    <img src="{% static 'web/assets2/images/slide-3-crop.jpg' %}" alt="">
+                  </div>
+                </div>
+                <!-- <div class="col-md-6">
+                  <div class="detail-box">
+                    <h1 style="text-transform: uppercase;">
+						Trusted <br> Entrepreneur Certificate [TEC]
+                    </h1>
+                    <p>
+
+					</p>
+                    <div class="btn-box">
+                      <a href="{% url 'exam:vlcregistrationdoc' %}" class="btn1">
+                        Register Now
+                      </a>
+                    </div>
+                  </div>
+                </div> -->
+              </div>
+            </div>
+          </div>
+        </div>
+        <ol class="carousel-indicators">
+          <li data-target="#customCarousel1" data-slide-to="0" class="active"></li>
+          <li data-target="#customCarousel1" data-slide-to="1"></li>
+          <li data-target="#customCarousel1" data-slide-to="2"></li>
+        </ol>
+      </div>
+
+    </section>
+    <!-- end slider section -->
+  </div>
+
+ 
+  <!-- service section -->
+  <section class="service_section layout_padding" style="background-color: #284478;">
+    <div class="container">
+        <div class="heading_container">
+            <h2 style="color: white;">Exam Tutorials</h2>
+            <!-- <p>consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p> -->
+        </div>
+
+        <div class="video-container text-center">
+            <!-- Video Player -->
+            <iframe id="videoFrame" width="800" height="450"
+    src="{% if videos and videos.0.embed_url %}{{ videos.0.embed_url }}?autoplay=1&mute=1{% else %}about:blank{% endif %}" 
+    frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+</iframe>
+            <h5 id="videoDesc">{{ videos.0.description }}</h5>
+        </div>
+
+        <div class="video-controls text-center mt-3">
+            <button class="btn btn-dark" onclick="prevVideo()">? Prev</button>
+            <button class="btn btn-dark" onclick="nextVideo()">Next ?</button>
+        </div>
+    </div>
+    {% for ytvideo in YouTubeVideo %}
+    <div class="sub-feed" style="width:100%; height: 30vh; background-color: #000; display: flex; align-items: center; margin-top: 10px;">
+        <div style="width:20%; height: 30vh; background-color: #ffffff; display: flex; align-items: center; padding: 10px;">
+            <iframe id="videoFrame" width="" height=""
+                src="{% if ytvideo.embed_url %}{{ ytvideo.embed_url }}?autoplay=1&mute=1{% else %}about:blank{% endif %}" 
+                frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+            </iframe>
+            <h5 id="videoDesc">{{ ytvideo.description }}</h5>
+        </div>
+    </div>
+{% endfor %}
+
+
+
+    </div>
+</section>
+  <!-- end service section -->
+
+
+  <!-- about section -->
+
+  <section class="about_section layout_padding mt-5">
+    <div class="container  ">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="detail-box">
+            <div class="heading_container">
+              <h2>
+                About Us SSC TEC Exam
+              </h2>
+            </div>
+            <p>
+              The SSC TEC Exam (Trusted Entrepreneur Certificate) is a specialized certification program designed to
+              empower individuals with the essential skills and knowledge required to succeed in the world of business
+              and entrepreneurship. This certification serves as a stepping stone for aspiring entrepreneurs, business
+              professionals, and self-employed individuals who seek to enhance their understanding of business
+              operations, financial management, digital services, and regulatory compliance.
+            </p>
+            <!-- <a href="">
+              About Us  SSC TEC Exam
+            </a> -->
+          </div>
+        </div>
+        <div class="col-md-6 ">
+          <div class="img-box">
+            <img src="{% static 'web/assets2/images/hero-about-1.jpg' %}" alt="">
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="heading_container">
+            <h2>
+              Why Choose the SSC TEC Exam?
+            </h2>
+          </div>
+          <p>
+            In today's rapidly evolving digital economy, having the right knowledge and credentials is crucial for
+            business success. The SSC TEC Exam ensures that candidates are well-equipped with:
+            <br><strong>Entrepreneurial Knowledge </strong> Learn about business planning, financial literacy, digital
+            services, and government regulations.
+            <br> <strong>Recognized Certification </strong> Earn a TEC Certificate that enhances your professional
+            credibility.
+            <br> <strong>Practical Learning Approach </strong> Gain insights into real-world business scenarios,
+            enabling you to make informed decisions.
+            <br> <strong> Career & Business Opportunities </strong> Open doors to self-employment, government projects,
+            and private business ventures.
+
+
+          </p>
+
+        </div>
+
+        <div class="detail-box">
+          <div class="heading_container">
+            <h2>
+              Certification Benefits
+            </h2>
+          </div>
+          <p>
+            Upon successful completion of the SSC TEC Exam, candidates receive:
+            <br><strong>Upon successful completion of the SSC TEC Exam, candidates receive:</strong> Learn about
+            business planning, financial literacy, digital services, and government regulations.
+            <br> <strong>Recognized Certification </strong> A recognition of your entrepreneurial skills and knowledge.
+            <br> <strong> Main Exam Centre Certificate </strong> Proof of successful completion at an authorized exam
+            center.
+
+            These certifications not only validate your expertise but also enhance your credibility as an entrepreneur,
+            helping you build trust with customers, investors, and business partners.
+          </p>
+
+        </div>
+
+        <div class="detail-box">
+          <div class="heading_container">
+            <h2>
+              Who Should Apply?
+            </h2>
+          </div>
+          <p>
+            The SSC TEC Exam is ideal for:
+            <br>Aspiring entrepreneurs looking to start their own business
+
+            <br>Existing business owners seeking certification to enhance their credibility
+
+            <br>Students and professionals wanting to expand their business knowledge
+
+          </p>
+
+        </div>
+
+        <div class="detail-box">
+          <div class="heading_container">
+            <h2>
+               Our mission
+            </h2>
+          </div>
+          <p>
+            Our mission is to support and nurture the entrepreneurial spirit by providing a structured learning
+            experience and a valuable certification that helps individuals achieve success in their business ventures.
+            Whether you are just starting or looking to expand your business knowledge, the SSC TEC Exam is the perfect
+            opportunity to enhance your skills and gain national recognition.
+
+          </p>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- end about section -->
+
+  <!-- case section -->
+
+  <!-- <section class="case_section layout_padding">
+    <div class="container">
+      <div class="heading_container">
+        <h2>
+          Our Case Studies
+        </h2>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <div class="box">
+            <div class="img-box">
+              <img src="{% static 'web/assets2/images/case-1.jpg" alt="">
+            </div>
+            <div class="detail-box">
+              <h5>
+                Sit amet consectetur adipisicing elit
+              </h5>
+              <p>
+                Alteration in some form, by injected humour, or randomised words which don't look even slightly believable.
+              </p>
+              <a href="">
+                <span>
+                  Read More
+                </span>
+                <i class="fa fa-long-arrow-right" aria-hidden="true"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="box">
+            <div class="img-box">
+              <img src="{% static 'web/assets2/images/case-2.jpg" alt="">
+            </div>
+            <div class="detail-box">
+              <h5>
+                Excepturi placeat nihil eos maxime
+              </h5>
+              <p>
+                Alteration in some form, by injected humour, or randomised words which don't look even slightly believable.
+              </p>
+              <a href="">
+                <span>
+                  Read More
+                </span>
+                <i class="fa fa-long-arrow-right" aria-hidden="true"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section> -->
+
+  <!-- end case section -->
+
+  <!-- client section -->
+  <!-- <section class="client_section ">
+    <div class="container">
+      <div class="heading_container heading_center">
+        <h2>
+          Testimonial
+        </h2>
+      </div>
+    </div>
+    <div id="customCarousel2" class="carousel slide" data-ride="carousel">
+      <div class="carousel-inner">
+        <div class="carousel-item active">
+          <div class="container">
+            <div class="row">
+              <div class="col-md-10 mx-auto">
+                <div class="box">
+                  <div class="img-box">
+                    <img src="{% static 'web/assets2/images/client.jpg" alt="">
+                  </div>
+                  <div class="detail-box">
+                    <div class="client_info">
+                      <div class="client_name">
+                        <h5>
+                          Morojink
+                        </h5>
+                        <h6>
+                          Customer
+                        </h6>
+                      </div>
+                      <i class="fa fa-quote-left" aria-hidden="true"></i>
+                    </div>
+                    <p>
+                      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
+                      labore
+                      et
+                      dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+                      aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+                      cillum
+                      dolore eu fugia
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="carousel-item">
+          <div class="container">
+            <div class="row">
+              <div class="col-md-10 mx-auto">
+                <div class="box">
+                  <div class="img-box">
+                    <img src="{% static 'web/assets2/images/client.jpg" alt="">
+                  </div>
+                  <div class="detail-box">
+                    <div class="client_info">
+                      <div class="client_name">
+                        <h5>
+                          Morojink
+                        </h5>
+                        <h6>
+                          Customer
+                        </h6>
+                      </div>
+                      <i class="fa fa-quote-left" aria-hidden="true"></i>
+                    </div>
+                    <p>
+                      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
+                      labore
+                      et
+                      dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+                      aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+                      cillum
+                      dolore eu fugia
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="carousel-item">
+          <div class="container">
+            <div class="row">
+              <div class="col-md-10 mx-auto">
+                <div class="box">
+                  <div class="img-box">
+                    <img src="{% static 'web/assets2/images/client.jpg" alt="">
+                  </div>
+                  <div class="detail-box">
+                    <div class="client_info">
+                      <div class="client_name">
+                        <h5>
+                          Morojink
+                        </h5>
+                        <h6>
+                          Customer
+                        </h6>
+                      </div>
+                      <i class="fa fa-quote-left" aria-hidden="true"></i>
+                    </div>
+                    <p>
+                      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
+                      labore
+                      et
+                      dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+                      aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+                      cillum
+                      dolore eu fugia
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ol class="carousel-indicators">
+        <li data-target="#customCarousel2" data-slide-to="0" class="active"></li>
+        <li data-target="#customCarousel2" data-slide-to="1"></li>
+        <li data-target="#customCarousel2" data-slide-to="2"></li>
+      </ol>
+    </div>
+  </section> -->
+  <!-- end client section -->
+
+
+
+  <!-- contact section -->
+
+  <!-- <section class="contact_section layout_padding">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-md-5 col-lg-4 offset-md-1">
+          <div class="form_container">
+            <div class="heading_container">
+              <h2>
+                Request A Call back
+              </h2>
+            </div>
+            <form action="">
+              <div>
+                <input type="text" placeholder="Full Name " />
+              </div>
+              <div>
+                <input type="email" placeholder="Email" />
+              </div>
+              <div>
+                <input type="text" placeholder="Phone number" />
+              </div>
+              <div>
+                <input type="text" class="message-box" placeholder="Message" />
+              </div>
+              <div class="d-flex ">
+                <button>
+                  SEND
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="col-md-6 col-lg-7 px-0">
+          <div class="map_container">
+            <div class="map">
+              <div id="googleMap"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section> -->
+
+  <!-- end contact section -->
+
+  <div class="footer_container mt-5">
+    <!-- info section -->
+
+    <!-- <section class="info_section ">
+      <div class="container">
+        <div class="row">
+          <div class="col-md-6 col-lg-3 ">
+            <div class="info_detail">
+              <h4>
+                SSC ACADEMY
+              </h4>
+              <p>
+                Necessary, making this the first true generator on the Internet. It uses a dictionary of over 200 Latin words, combined with a handful
+              </p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-2 mx-auto">
+            <div class="info_link_box">
+              <h4>
+                Links
+              </h4>
+              <div class="info_links">
+                <a class="" href="index.html">
+                  Home
+                </a>
+                <a class="" href="about.html">
+                  About
+                </a>
+                <a class="" href="service.html">
+                  Services
+                </a>
+                <a class="" href="contact.html">
+                  Contact Us
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-lg-3 mb-0 ml-auto">
+            <div class="info_contact">
+              <h4>
+                Address
+              </h4>
+              <div class="contact_link_box">
+                <a href="">
+                  <i class="fa fa-map-marker" aria-hidden="true"></i>
+                  <span>
+                    Location
+                  </span>
+                </a>
+                <a href="">
+                  <i class="fa fa-phone" aria-hidden="true"></i>
+                  <span>
+                    Call +01 1234567890
+                  </span>
+                </a>
+                <a href="">
+                  <i class="fa fa-envelope" aria-hidden="true"></i>
+                  <span>
+                    demo@gmail.com
+                  </span>
+                </a>
+              </div>
+            </div>
+            <div class="info_social">
+              <a href="">
+                <i class="fa fa-facebook" aria-hidden="true"></i>
+              </a>
+              <a href="">
+                <i class="fa fa-twitter" aria-hidden="true"></i>
+              </a>
+              <a href="">
+                <i class="fa fa-linkedin" aria-hidden="true"></i>
+              </a>
+              <a href="">
+                <i class="fa fa-instagram" aria-hidden="true"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section> -->
+
+    <!-- end info section -->
+
+    <!-- footer section -->
+
+    <!-- footer section -->
+  </div>
+
+  <!-- jQery -->
+  <!-- <script src="js/jquery-3.4.1.min.js"></script> -->
+  <!-- popper js -->
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+    integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous">
+    </script>
+  <!-- bootstrap js -->
+  <!-- <script src="js/bootstrap.js"></script> -->
+  <!-- <script src="js/"></script> -->
+
+  <script src="{% static 'web/assets2/js/jquery-3.4.1.min.js' %}"></script>
+  <script src="{% static 'web/assets2/js/custom.js' %}"></script>
+  <script src="{% static 'web/assets2/js/bootstrap.js' %}"></script>
+
+
+  <!-- Google Map -->
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCh39n5U-4IoWpsVGUHWdqB6puEkhRLdmI&callback=myMap"></script>
+  <!-- End Google Map -->
+
+
+<!-- JavaScript to Handle Video Playback -->
+<script>
+  let videoIndex = 0;
+  var videos = {{ videos|safe }}; // Ensure videos are passed as JSON
+
+  function updateVideo() {
+    let frame = document.getElementById("videoFrame");
+    let desc = document.getElementById("videoDesc");
+    
+    if (videos.length > 0) {
+        frame.src = videos[videoIndex].embed_url + "?autoplay=1&mute=1";
+        desc.innerText = videos[videoIndex].description;
+    }
+}
+
+  window.onload = function () {
+    updateVideo();
+  };
+
+  function prevVideo() {
+    videoIndex = (videoIndex - 1 + videos.length) % videos.length; // Loop backward
+    updateVideo();
+}
+
+function nextVideo() {
+    videoIndex = (videoIndex + 1) % videos.length; // Loop forward
+    updateVideo();
+}
+
+  // Automatically switch to the next video when the current video ends
+  function setupAutoPlay() {
+    let frame = document.getElementById("videoFrame");
+
+    frame.addEventListener("load", function () {
+      let player = new YT.Player("videoFrame", {
+        events: {
+          "onStateChange": function (event) {
+            if (event.data === YT.PlayerState.ENDED) {
+              nextVideo(); // Play next video when the current one ends
+            }
+          }
+        }
+      });
+    });
+  }
+
+  // Load YouTube API script for detecting video end
+  function loadYouTubeAPI() {
+    let tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    let firstScriptTag = document.getElementsByTagName("script")[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+  }
+
+  loadYouTubeAPI(); // Load API
+  setupAutoPlay();  // Set up autoplay functionality
+</script>
+
+
+<!-- Bootstrap & jQuery (Required for Modal) -->
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+</body>
+
+</html>
+{% endblock %}

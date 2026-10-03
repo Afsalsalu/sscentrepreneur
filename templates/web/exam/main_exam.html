@@ -1,0 +1,248 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Main Exam SSC</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'web/css/exam.css' %}">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        .exam-area {
+            padding: 40px 0;
+        }
+
+        .section-title {
+            margin-bottom: 30px;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .question-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 13px;
+            justify-content: center;
+            margin-bottom: 20px;
+            width: 30%;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            float: left;
+        }
+
+        .question-nav-item {
+            background: #007a9b;
+            color: #fff;
+            text-decoration: none;
+            padding: 5px 10px;
+            text-align: center;
+            flex: 1 0 16%;
+            max-width: 35px;
+            font-size: 0.9rem;
+            height: 30px;
+            font-family: monospace;
+        }
+
+        @media (max-width: 600px) {
+            .question-nav-item {
+                flex: 1 0 30%;
+            }
+        }
+
+        .question-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .question-card.active {
+            display: block;
+            width: 75%;
+        }
+
+        .question-card legend {
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .question-card input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        .question-card label {
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .question-nav-item.active {
+            background-color: aqua;
+            color: black;
+            font-family: fantasy;
+        }
+
+        .question-nav-item.answered {
+            background-color: #007bff;
+            color: #fff;
+        }
+
+        .question-nav-item.unanswered {
+            background-color: #dc3545;
+        }
+
+        #submit-btn {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #submit-btn:hover {
+            background-color: #0056b3;
+        }
+
+        #result {
+            margin-top: 20px;
+            font-size: 1.1rem;
+        }
+
+        .error-messages p::before {
+            content: "* ";
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="main-exam-shell">
+        <section id="initialDiv" class="main-exam-intro">
+            <h1>{{ exam_category.name }}</h1>
+            <button id="startButton" class="btn btn-primary" type="button" disabled>
+                Preparing camera monitoring...
+            </button>
+            <h4>Total 60 minutes Exam Time</h4>
+            <div class="error-messages">
+                <h3>Important Guidelines</h3>
+                <p>Total Questions: The exam consists of 50 multiple-choice questions, covering various topics related to the TEC certification.</p>
+                <p>Passing Criteria: You must score at least 50% (25 correct answers out of 50) to successfully pass the exam and receive your certification.</p>
+                <p>Exam Attempts: Each candidate is allowed only 2 attempts to clear the exam; failing both attempts will require re-registration.</p>
+                <p>Camera monitoring runs in this browser only. Monitoring warnings are reminders and do not automatically submit, disqualify, redirect, disable, or change the score for your exam.</p>
+                <p>Submit Exam Only After Attempting All Questions: The "Submit Exam" button should be used after attempting the questions.</p>
+                <p>Stable Internet: Ensure that you have a stable internet connection before starting the exam.</p>
+                <p>No External Help: The use of books, notes, external devices, or assistance from others during the exam is prohibited.</p>
+            </div>
+        </section>
+
+        <section class="main-exam-camera-panel" aria-labelledby="camera-monitoring-heading">
+            <h2 id="camera-monitoring-heading" class="visually-hidden">Camera monitoring</h2>
+            <div id="camera-monitoring-status" class="camera-monitoring-status" role="status" aria-live="polite">
+                Camera monitoring setup in progress...
+            </div>
+            <video id="video-preview" width="320" height="240" autoplay muted playsinline hidden></video>
+            <div id="monitoring-setup-error" class="monitoring-setup-error" role="alert" hidden>
+                <p id="monitoring-setup-error-message">Camera monitoring setup is required before starting the exam.</p>
+                <button id="retry-monitoring-btn" class="btn btn-danger" type="button">Retry camera monitoring</button>
+            </div>
+        </section>
+
+        <div id="monitoring-warning-modal" class="monitoring-warning-modal" role="alertdialog" aria-modal="false"
+            aria-labelledby="monitoring-warning-title" aria-describedby="monitoring-warning-message" hidden>
+            <h2 id="monitoring-warning-title">Camera monitoring reminder</h2>
+            <p id="monitoring-warning-message"></p>
+            <button id="monitoring-warning-dismiss" class="btn btn-primary" type="button">I Understand</button>
+        </div>
+
+        <section class="exam-area section-padding" id="examSection" hidden>
+            <form id="main-exam-form" method="POST" action="{% url 'exam:main_exam' %}">
+                {% csrf_token %}
+
+                <div class="container">
+                    <div class="row">
+                        <div class="col-lg-12 text-center">
+                            <div style="display: flex; justify-content: center; flex-direction: column-reverse;">
+                                <div>
+                                    <p style="font-size: 30px; margin-bottom: 0px; margin-top: 0px; margin-left: 4px;"
+                                        class="timer">Time End In - 59:99</p>
+                                </div>
+                                <div>
+                                    <h2 class="section-title">Main Exam</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="col-lg-12">
+                                <div class="question-nav">
+                                    {% for question in questions %}
+                                    <a href="#" class="question-nav-item" data-id="{{ question.id }}"
+                                        data-target="#question_{{ question.id }}" title="Question {{ forloop.counter }}">
+                                        {{ forloop.counter }}
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                                <div class="question-cards">
+                                    {% for question in questions %}
+                                    <div class="question-card" id="question_{{ question.id }}">
+                                        <fieldset>
+                                            <legend>{{ question.question_text }}</legend>
+                                            {% for option in question.options.all %}
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio"
+                                                    name="question_{{ question.id }}" value="{{ option.id }}"
+                                                    id="option_{{ option.id }}">
+                                                <label class="form-check-label" for="option_{{ option.id }}">{{ option.option }}</label>
+                                            </div>
+                                            {% endfor %}
+                                        </fieldset>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="button-parent" style="gap: 5px; float: left; margin-left: 5px;">
+                                    <button type="submit" id="submit-btn">Submit Main Exam</button>
+                                    <p style="color: red;">Warning: Do not submit before attempting the maximum number of questions!</p>
+                                    <div id="result" aria-live="polite"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        window.MAIN_EXAM_CONFIG = {
+            submitUrl: "{% url 'exam:main_exam' %}",
+            dashboardUrl: "{% url 'exam:dashboard' %}",
+            identityVerificationUrl: "{% url 'exam:capture_image' %}",
+            mediapipePackageUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/+esm",
+            mediapipeWasmUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm",
+            faceLandmarkerModelUrl: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+        };
+    </script>
+    <script type="module" src="{% static 'web/dashboard/assets/js/main-exam.js' %}"></script>
+</body>
+
+</html>

@@ -1,0 +1,242 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capture Photo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            width: 900px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .capture-section {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        video {
+            width: 35%;
+            /* border-radius: 10px; */
+            border: 2px solid #ddd;
+            margin-right: 10px;
+        }
+
+        .preview {
+            width: 25%;
+            /* border-radius: 10px; */
+            border: 2px solid #ddd;
+            display: none;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .btn-upload {
+            background-color: #28a745;
+        }
+
+        .btn-upload:hover {
+            background-color: #1f8733;
+        }
+
+        .buttons {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        /* Hide sections initially */
+        .section {
+            display: none;
+        }
+        
+        /* Show only active section */
+        .active {
+            display: block;
+        }
+
+
+    /* Success checkmark animation */
+    .success-animation {
+        display: block;
+        font-size: 30px;
+        color: #28a745;
+        font-weight: bold;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(1);
+        transition: transform 0.3s ease-in-out;
+        opacity: 1;
+    }
+
+    /* Loading animation (spinner) */
+    .loading-animation {
+        display: none;
+        width: 40px;
+        height: 40px;
+        border: 5px solid #ddd;
+        border-top: 5px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    @keyframes spin {
+        0% { transform: translate(-50%, -50%) rotate(0deg); }
+        100% { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    </style>
+
+<style>
+    .terms-container {
+        background-color: #ffffff;
+        border: 2px solid #4CAF50;
+        border-radius: 15px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding: 0px;
+        width: 100%;
+        height: auto; /* Reduced height */
+    }
+    h3 {
+        text-align: center;
+        color: #4CAF50;
+        margin-bottom: 10px; /* Reduced spacing */
+        text-transform: uppercase;
+        font-size: 1.5rem;
+        border-bottom: 2px solid #4CAF50;
+        padding-bottom: 5px; /* Creates a separate row effect */
+    }
+    p {
+        line-height: 1.4;
+        color: #333;
+    }
+    p strong {
+        color: #4CAF50;
+    }
+</style>
+
+</head>
+<body data-upload-url="{% url 'exam:upload_images' %}">
+
+    <div class="container">
+
+        <!-- User Photo Capture Section -->
+        <div id="user-section" class="section active">
+            <h2>Capture You'r Photo</h2>
+            <div class="capture-section">
+                <video id="user-video" autoplay muted playsinline></video>
+                <img id="user-preview" class="preview" alt="User Preview">
+                <img src="{% static 'web/assets2/images/user-front-border.png' %}" alt="User Front Preview" width="150px" style="margin-left: 10px;">
+                <img src="{% static 'web/assets2/images/user-side-border.png' %}" alt="User Side Preview" width="150px" style=" margin-left: 10px;">
+            </div>
+            <div id="camera-error" role="alert" hidden>
+                <p id="camera-error-message"></p>
+                <button id="retry-camera-btn" type="button" hidden>Retry camera</button>
+            </div>
+            <div class="buttons">
+                <button id="capture-user-btn" type="button" disabled>Capture User</button>
+                <button id="next-aadhaar-btn" type="button" style="background-color: #28a745;" disabled>Next: Capture Aadhaar</button>
+
+            </div>
+            <div class="terms-container">
+                <h3>TERMS AND CONDITIONS</h3>
+                <p>
+                    <strong>Image Authenticity:</strong> The submitted photo must be a clear and unaltered representation of your face. Blurry, unclear, or edited images may result in verification failure. <br><br>
+                    <strong>Proper Lighting and Visibility:</strong> Ensure your face is fully visible with adequate lighting. Avoid wearing accessories such as hats, sunglasses, or face coverings unless medically necessary. <br><br>
+                    <strong>Data Usage:</strong> The captured photo will only be used for identity verification and stored securely for the required duration. <br><br>
+                    <strong>Compliance:</strong> Submitting a false image or impersonating another individual is strictly prohibited and may result in legal action. <br><br>
+                    <strong>User Consent:</strong> By clicking "Capture User" and proceeding, you confirm that the uploaded photo is authentic and willingly provided for verification purposes. <br>
+                </p>
+            </div>
+        </div>
+
+<!-- Aadhaar Card Capture Section -->
+<div id="aadhaar-section" class="section">
+    <h2>Capture Aadhaar Card</h2>
+    <div class="capture-section">
+        <video id="aadhaar-video" autoplay muted playsinline></video>
+        <img id="aadhaar-preview" class="preview" alt="Aadhaar Preview">
+        <img src="{% static 'web/assets2/images/adhar-front-border.png' %}" alt="Aadhaar Front Preview" width="150px" style="margin-left: 10px;">
+        <img src="{% static 'web/assets2/images/adhar-side-border.png' %}" alt="Aadhaar Side Preview" width="150px" style="margin-left: 10px;">
+    </div>
+    <div class="buttons">
+        <button id="capture-aadhaar-btn" type="button" disabled>Capture Aadhaar</button>
+        <button id="get-verification-btn" type="button" class="btn-upload" disabled>Get Verification</button>
+        
+    </div>
+    <div class="terms-container">
+        <h3>TERMS AND CONDITIONS</h3>
+        <p>
+            <strong>Image Authenticity:</strong> The submitted Aadhaar card image must be clear, unaltered, and display all required details. Blurry, cropped, or edited images may result in verification failure. <br><br>
+            <strong>Document Visibility:</strong> Ensure the Aadhaar card is fully visible within the frame. Avoid glare, reflections, or any obstructions that might obscure key details. <br><br>
+            <strong>Data Usage:</strong> The captured Aadhaar card image will only be used for identity verification purposes and stored securely for the required duration. <br><br>
+            <strong>Compliance:</strong> Submitting fraudulent or tampered Aadhaar details is strictly prohibited and may lead to legal consequences. <br><br>
+            <strong>User Consent:</strong> By clicking "Capture Aadhaar" and proceeding, you confirm that the uploaded Aadhaar image is authentic and willingly provided for verification purposes. <br>
+        </p>
+    </div>
+</div>
+
+
+<!-- Uploaded Image Preview Section -->
+<div id="uploaded-section" class="section">
+    <h2>Uploaded Images</h2>
+    <div class="capture-section">
+        <div style="position: relative;">
+            <img style="width: 70%;" id="uploaded-user-preview" class="preview" alt="Uploaded User Image">
+            <div id="user-success" class="success-animation">ok</div>
+            <div id="user-loading" class="loading-animation"></div>
+        </div>
+
+        <div style="position: relative;">
+
+        <img style="width: 70%;" id="uploaded-aadhaar-preview" class="preview" alt="Uploaded Aadhaar Image"> <br>
+
+            <div id="aadhaar-success" class="success-animation">ok</div>
+            <div id="aadhaar-loading" class="loading-animation"></div>
+
+        </div>
+    </div>
+
+    <!-- Hidden initially, shows after clicking "Get Verification" -->
+    <button id="upload-submit-btn" type="button" class="btn-upload" hidden>Upload &amp; Submit</button>
+</div>
+
+<form id="document-validation-csrf-form" hidden>
+    {% csrf_token %}
+</form>
+<script src="{% static 'web/dashboard/assets/js/document-validation.js' %}" defer></script>
+
+</body>
+</html>

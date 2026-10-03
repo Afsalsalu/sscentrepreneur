@@ -1,0 +1,165 @@
+{% extends "web/exam/base.html" %}
+{% load static %}
+{% block content %}
+
+<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+
+<div class="page-body">
+    <div class="container-fluid">
+      <div class="page-title">
+        <div class="row">
+          <div class="col-12 text-center">
+            <h1 class="text-uppercase fw-bold mb-4" style="color: black;">🎓 Certificates</h1>
+            <hr class="w-25 mx-auto" style="border-top: 3px solid; color: black;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="container-fluid">
+        <div class="row justify-content-center">
+          <div class="col-md-8">
+            <div class="card shadow-lg border-0 rounded-4">
+              <div class="card-header text-center bg-gradient-primary text-white py-4 rounded-top-4">
+                <h3 class="mb-0">Your Certificate Details</h3>
+              </div>
+
+              <div class="card-body p-4">
+                <div class="text-center card bg-custom-500 shadow rounded-lg overflow-hidden border">
+                    <div class="flex flex-col h-full card-body p-5" style="background-color: #173878;">
+                        <div class="certificate-image-container" 
+                             style="background-color: #173878; padding: 20px; border-radius: 10px;">
+                            <img src="{% static 'web/images/medal.png' %}" 
+                                 alt="Medal Icon" 
+                                 class="w-2/6 mx-auto" 
+                                 style="width: 100px; height: 130px;">
+                        </div>
+
+                        <div class="mt-4 mb-4 text-center">
+                            <h4 class="text-white fw-bold text-uppercase mb-2">
+                                🎉 Congratulations, {{ centreusers.client_name }}!
+                            </h4>
+                            <p class="text-custom-200 fw-light" 
+                               style="font-size: 16px; color: #d1e7ff;">
+                               For {{ centreusers.owner_centre }}
+                            </p>
+                        </div>
+
+                        {% if centreusers and centreusers.certificate_paid %}
+                            <div class="p-3 mt-4 rounded-md shadow-sm text-center"
+                                 style="background-color: #28a745; border: 2px solid #1e7e34;">
+                                <a href="{% url 'web:main_certificate' %}" 
+                                   class="btn btn-light fw-bold text-uppercase px-4 py-2"
+                                   target="_blank">
+                                    🏅 Download Your Certificate
+                                </a>
+                            </div>
+                        {% elif centreusers %}
+                            <div class="p-3 mt-4 rounded-md shadow-sm text-center">
+                                <button id="pay-for-certificate"
+                                        class="btn btn-success fw-bold text-uppercase px-4 py-2">
+                                    💳 Pay for Certificate ₹375/-
+                                </button>
+                            </div>
+                        {% else %}
+                            <p class="text-danger fw-bold mt-3">
+                                ⚠️ No profile found.
+                            </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>            
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+</div>
+
+<!-- Razorpay Payment Script -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+    document.getElementById('pay-for-certificate').addEventListener('click', function () {
+      fetch('/certificate_payment_order/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        }
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to create order. Please try again later.');
+        }
+        return response.json();
+      })
+      .then(data => {
+        const options = {
+          "key": "{{ razorpay_key_id }}",  
+          "amount": data.amount,  
+          "currency": "INR",
+          "order_id": data.razorpay_order_id, 
+          "name": "Certificate Payment",
+          "description": "Secure Payment for Your Certificate",
+          "image": "{% static 'web/images/logoSSC-blue.png' %}", 
+          "handler": function (response) {
+            fetch('/payment_success/', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+              },
+              body: JSON.stringify({
+                payment_id: response.razorpay_payment_id,
+                razorpay_order_id: data.razorpay_order_id
+              })
+            })
+            .then(res => res.json())
+            .then(responseData => {
+              if (responseData.success) {
+                Swal.fire({
+                  icon: 'success',
+                  title: 'Payment Successful!',
+                  text: 'Redirecting to download your certificate...',
+                  timer: 3000,
+                  showConfirmButton: false
+                }).then(() => {
+                  window.location.reload();
+                });
+              } else {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Payment Failed!',
+                  text: responseData.message || 'Please try again.',
+                });
+              }
+            });
+          },
+          "prefill": {
+            "name": "{{ profile.centre_owner }}",
+            "email": "{{ profile.email }}",
+            "contact": "{{ profile.mobile }}"
+          },
+          "theme": {
+            "color": "#284478"
+          }
+        };
+  
+        const rzp = new Razorpay(options);
+        rzp.open();
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Something went wrong!',
+          text: 'Please try again later.'
+        });
+      });
+    });
+  </script>
+  
+  <!-- SweetAlert2 for better alerts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+{% endblock %}
