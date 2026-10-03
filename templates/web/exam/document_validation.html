@@ -148,7 +148,7 @@
 </style>
 
 </head>
-<body>
+<body data-upload-url="{% url 'exam:upload_images' %}">
 
     <div class="container">
 
@@ -156,14 +156,18 @@
         <div id="user-section" class="section active">
             <h2>Capture You'r Photo</h2>
             <div class="capture-section">
-                <video id="user-video" autoplay></video>
+                <video id="user-video" autoplay muted playsinline></video>
                 <img id="user-preview" class="preview" alt="User Preview">
                 <img src="{% static 'web/assets2/images/user-front-border.png' %}" alt="User Front Preview" width="150px" style="margin-left: 10px;">
                 <img src="{% static 'web/assets2/images/user-side-border.png' %}" alt="User Side Preview" width="150px" style=" margin-left: 10px;">
             </div>
+            <div id="camera-error" role="alert" hidden>
+                <p id="camera-error-message"></p>
+                <button id="retry-camera-btn" type="button" hidden>Retry camera</button>
+            </div>
             <div class="buttons">
-                <button id="capture-user-btn" onclick="captureUser()">Capture User</button>
-                <button id="next-aadhaar-btn" style="background-color: #28a745;" onclick="showAadhaarSection()" disabled>Next: Capture Aadhaar</button>
+                <button id="capture-user-btn" type="button" disabled>Capture User</button>
+                <button id="next-aadhaar-btn" type="button" style="background-color: #28a745;" disabled>Next: Capture Aadhaar</button>
 
             </div>
             <div class="terms-container">
@@ -182,14 +186,14 @@
 <div id="aadhaar-section" class="section">
     <h2>Capture Aadhaar Card</h2>
     <div class="capture-section">
-        <video id="aadhaar-video" autoplay></video>
+        <video id="aadhaar-video" autoplay muted playsinline></video>
         <img id="aadhaar-preview" class="preview" alt="Aadhaar Preview">
         <img src="{% static 'web/assets2/images/adhar-front-border.png' %}" alt="Aadhaar Front Preview" width="150px" style="margin-left: 10px;">
         <img src="{% static 'web/assets2/images/adhar-side-border.png' %}" alt="Aadhaar Side Preview" width="150px" style="margin-left: 10px;">
     </div>
     <div class="buttons">
-        <button id="capture-aadhaar-btn" onclick="captureAadhaar()">Capture Aadhaar</button>
-        <button id="get-verification-btn" class="btn-upload" onclick="showVerificationSection()" disabled>Get Verification</button>
+        <button id="capture-aadhaar-btn" type="button" disabled>Capture Aadhaar</button>
+        <button id="get-verification-btn" type="button" class="btn-upload" disabled>Get Verification</button>
         
     </div>
     <div class="terms-container">
@@ -226,256 +230,13 @@
     </div>
 
     <!-- Hidden initially, shows after clicking "Get Verification" -->
-    <button id="upload-submit-btn" class="btn-upload" style="display: none;" onclick="uploadImages()">Upload & Submit</button>
+    <button id="upload-submit-btn" type="button" class="btn-upload" hidden>Upload &amp; Submit</button>
 </div>
 
-<script>
-    
-    function uploadImages() {
-    // Hide the submit button initially
-    document.getElementById("upload-submit-btn").style.display = "none";
-
-    // Show success icons first
-    document.getElementById("user-success").style.display = "block";
-    document.getElementById("aadhaar-success").style.display = "block";
-
-    // Start loading animation after 500ms
-    setTimeout(() => {
-        document.getElementById("user-loading").style.display = "block";
-        document.getElementById("aadhaar-loading").style.display = "block";
-
-        // Hide loading animation after 6 seconds, then show the submit button
-        setTimeout(() => {
-            document.getElementById("user-loading").style.display = "none";
-            document.getElementById("aadhaar-loading").style.display = "none";
-
-            //  Show "Upload & Submit" button after loading finishes
-            document.getElementById("upload-submit-btn").style.display = "block";
-
-        }, 6000); // Wait for 6 seconds
-    }, 500);
-
-    //  Send images to the server
-    fetch("/exam/upload/", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `aadhaar_image=${encodeURIComponent(aadhaarImage)}&user_image=${encodeURIComponent(userImage)}`
-    })
-    .then(response => response.json())
-    .then(data => {
-        alert(data.message);
-    })
-    .catch(error => {
-        console.error("Error uploading images:", error);
-    });
-}
-
-
-</script>
-
-<script>
-    function showVerificationSection() {
-    // Hide Aadhaar Section
-    document.getElementById("aadhaar-section").classList.remove("active");
-
-    // Show Uploaded Section
-    document.getElementById("uploaded-section").classList.add("active");
-
-    //  Ensure images are set before showing the section
-    document.getElementById("uploaded-user-preview").src = userImage;
-    document.getElementById("uploaded-user-preview").style.display = "block";
-
-    document.getElementById("uploaded-aadhaar-preview").src = aadhaarImage;
-    document.getElementById("uploaded-aadhaar-preview").style.display = "block";
-
-
-}
-
-</script>
-    
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-    // Show loading animation when the page opens
-    document.getElementById("user-loading").style.display = "block";
-    document.getElementById("aadhaar-loading").style.display = "block";
-    document.getElementById("upload-submit-btn").style.display = "none"; // Hide button initially
-
-    // Hide loading after 6 seconds and show button
-    setTimeout(() => {
-        document.getElementById("user-loading").style.display = "none";
-        document.getElementById("aadhaar-loading").style.display = "none";
-        document.getElementById("upload-submit-btn").style.display = "block"; // Show button after 6s
-    }, 9000);
-});
-
-</script>
-    <script>
-        function setupCamera(videoElement) {
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then((stream) => { videoElement.srcObject = stream; })
-                .catch((err) => console.error("Error accessing webcam: ", err));
-        }
-
-        setupCamera(document.getElementById("user-video"));
-        setupCamera(document.getElementById("aadhaar-video"));
-
-        let userImage = "";
-        let aadhaarImage = "";
-
-        function captureUser() {
-            let video = document.getElementById("user-video");
-            let canvas = document.createElement("canvas");
-            let context = canvas.getContext("2d");
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            userImage = canvas.toDataURL("image/jpeg");
-            document.getElementById("user-preview").src = userImage;
-            document.getElementById("user-preview").style.display = "block";
-        }
-
-        function captureAadhaar() {
-            let video = document.getElementById("aadhaar-video");
-            let canvas = document.createElement("canvas");
-            let context = canvas.getContext("2d");
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            aadhaarImage = canvas.toDataURL("image/jpeg");
-            document.getElementById("aadhaar-preview").src = aadhaarImage;
-            document.getElementById("aadhaar-preview").style.display = "block";
-        }
-
-        function uploadImages() {
-            fetch("/exam/upload/", {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: `aadhaar_image=${encodeURIComponent(aadhaarImage)}&user_image=${encodeURIComponent(userImage)}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                alert(data.message); 
-                window.location.href = data.redirect_url; 
-            })
-            .catch(error => {
-                console.error("Error uploading images:", error); 
-            });
-        }
-
-        function showAadhaarSection() {
-            document.getElementById("user-section").classList.remove("active");
-            document.getElementById("aadhaar-section").classList.add("active");
-        }
-    </script>
-
-
-
-
-<script>
-    function uploadImages() {
-        // Show success icon first
-        document.getElementById("user-success").style.display = "block";
-        document.getElementById("aadhaar-success").style.display = "block";
-
-        // Start loading animation after 500ms
-        setTimeout(() => {
-            document.getElementById("user-loading").style.display = "block";
-            document.getElementById("aadhaar-loading").style.display = "block";
-
-            // Hide loading animation after 3 seconds, keeping only the success icon
-            setTimeout(() => {
-                document.getElementById("user-loading").style.display = "none";
-                document.getElementById("aadhaar-loading").style.display = "none";
-            }, 3000);
-        }, 500);
-
-        fetch("/exam/upload/", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: `aadhaar_image=${encodeURIComponent(aadhaarImage)}&user_image=${encodeURIComponent(userImage)}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message);
-
-            // Show uploaded images
-            document.getElementById("uploaded-user-preview").src = userImage;
-            document.getElementById("uploaded-user-preview").style.display = "block";
-
-            document.getElementById("uploaded-aadhaar-preview").src = aadhaarImage;
-            document.getElementById("uploaded-aadhaar-preview").style.display = "block";
-
-            // Show the uploaded section
-            document.getElementById("uploaded-section").classList.add("active");
-
-            // Hide previous sections
-            document.getElementById("user-section").classList.remove("active");
-            document.getElementById("aadhaar-section").classList.remove("active");
-        })
-        .catch(error => {
-            console.error("Error uploading images:", error);
-        });
-    }
-</script>
-
-<script>
-
-    
-    function uploadImages() {
-    fetch("/exam/upload/", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `aadhaar_image=${encodeURIComponent(aadhaarImage)}&user_image=${encodeURIComponent(userImage)}`
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.redirect_url) {
-            window.location.href = data.redirect_url; // Redirect after successful upload
-        } else {
-            alert(data.message);
-        }
-    })
-    .catch(error => {
-        console.error("Error uploading images:", error);
-    });
-}
-
-
-
-</script>
-
-<script>
-function captureUser() {
-    let video = document.getElementById("user-video");
-    let canvas = document.createElement("canvas");
-    let context = canvas.getContext("2d");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    userImage = canvas.toDataURL("image/jpeg");
-    document.getElementById("user-preview").src = userImage;
-    document.getElementById("user-preview").style.display = "block";
-
-    // Enable "Next: Capture Aadhaar" button
-    document.getElementById("next-aadhaar-btn").disabled = false;
-}
-
-function captureAadhaar() {
-    let video = document.getElementById("aadhaar-video");
-    let canvas = document.createElement("canvas");
-    let context = canvas.getContext("2d");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    aadhaarImage = canvas.toDataURL("image/jpeg");
-    document.getElementById("aadhaar-preview").src = aadhaarImage;
-    document.getElementById("aadhaar-preview").style.display = "block";
-
-    // Enable "Get Verification" button
-    document.getElementById("get-verification-btn").disabled = false;
-}
-
-</script>
+<form id="document-validation-csrf-form" hidden>
+    {% csrf_token %}
+</form>
+<script src="{% static 'web/dashboard/assets/js/document-validation.js' %}" defer></script>
 
 </body>
 </html>

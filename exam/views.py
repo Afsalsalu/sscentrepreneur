@@ -23,6 +23,7 @@ from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.templatetags.static import static
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -1783,32 +1784,35 @@ def document_validation(request):
         return redirect('exam:main_exam')
     return render(request, 'web/exam/document_validation.html')
 
-@csrf_exempt
 def upload_images(request):
     if request.method == "POST":
         aadhaar = request.POST.get("aadhaar_image")
         photo = request.POST.get("user_image")
 
         if aadhaar and photo:
-            format, aadhaar_str = aadhaar.split(';base64,')
-            format, user_str = photo.split(';base64,')
+            try:
+                _, aadhaar_str = aadhaar.split(';base64,', 1)
+                _, user_str = photo.split(';base64,', 1)
+                aadhaar_bytes = base64.b64decode(aadhaar_str, validate=True)
+                photo_bytes = base64.b64decode(user_str, validate=True)
+            except (ValueError, UnicodeEncodeError, base64.binascii.Error):
+                return JsonResponse({"error": "Invalid image data"}, status=400)
             
-            aadhaar = ContentFile(base64.b64decode(aadhaar_str), name="aadhaar.jpg")
-            photo = ContentFile(base64.b64decode(user_str), name="user.jpg")
+            aadhaar = ContentFile(aadhaar_bytes, name="aadhaar.jpg")
+            photo = ContentFile(photo_bytes, name="user.jpg")
 
             user = TemporaryUser.objects.get(user=request.user)
 
             DocumentValidation.objects.create(user=user, aadhaar=aadhaar, photo=photo)
 
-            return JsonResponse({"message": "Images uploaded successfully!" , 
-                                 "redirect_url": "/exam/main-exam/"}, status=201)
+            return JsonResponse({"message": "Images uploaded successfully!",
+                                 "redirect_url": reverse("exam:main_exam")}, status=201)
     
     return JsonResponse({"error": "Invalid request"}, status=400)
 
 import os
 from exam.models.user_registration import ExamValidation
 import requests
-@csrf_exempt
 def capture_image(request):
     if request.method == 'POST' and request.FILES.get('captured_image'):
         image = request.FILES['captured_image']
@@ -1865,12 +1869,12 @@ def capture_image(request):
                             print('user is verfied.......!!!!!!!!!')
                             return JsonResponse({'success': True, 'message': 'Face verification successful'})
                         else:
-                            return JsonResponse({'success': False, 'message': 'Face verification failed', 'redirect_url': '/exam/dashboard/'})
+                            return JsonResponse({'success': False, 'message': 'Face verification failed', 'redirect_url': reverse('exam:dashboard')})
                     else:
-                        return JsonResponse({'success': False, 'message': 'ArcFace model result not found', 'redirect_url': '/exam/dashboard/'})
+                        return JsonResponse({'success': False, 'message': 'ArcFace model result not found', 'redirect_url': reverse('exam:dashboard')})
 
                 else:
-                    return JsonResponse({'success': False, 'message': 'API error', 'redirect_url': '/exam/dashboard/'})
+                    return JsonResponse({'success': False, 'message': 'API error', 'redirect_url': reverse('exam:dashboard')})
             else:
                 print('Data already exists')
                 exam_validation = ExamValidation.objects.get(user=document_image)
@@ -1908,17 +1912,17 @@ def capture_image(request):
                             return JsonResponse({'success': True, 'message': 'Face verification successful'})
                         else:
                             print('faileddd........!!!!!!!!!')
-                            return JsonResponse({'success': False, 'message': 'Face verification failed', 'redirect_url': '/exam/main_exam_login/'})
+                            return JsonResponse({'success': False, 'message': 'Face verification failed', 'redirect_url': reverse('exam:main_exam_login')})
                     else:
-                        return JsonResponse({'success': False, 'message': 'ArcFace model result not found', 'redirect_url': '/exam/dashboard/'})
+                        return JsonResponse({'success': False, 'message': 'ArcFace model result not found', 'redirect_url': reverse('exam:dashboard')})
 
                 else:
-                    return JsonResponse({'success': False, 'message': 'API error', 'redirect_url': '/exam/dashboard/'}) 
+                    return JsonResponse({'success': False, 'message': 'API error', 'redirect_url': reverse('exam:dashboard')})
 
         except TemporaryUser.DoesNotExist:
-            return JsonResponse({'success': False, 'message': 'User not found', 'redirect_url': '/exam/dashboard/'})
+            return JsonResponse({'success': False, 'message': 'User not found', 'redirect_url': reverse('exam:dashboard')})
 
-    return JsonResponse({'success': False, 'message': 'No image received', 'redirect_url': '/exam/dashboard/'})
+    return JsonResponse({'success': False, 'message': 'No image received', 'redirect_url': reverse('exam:dashboard')})
 
 
 import re
