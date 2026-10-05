@@ -35,11 +35,15 @@ const WARNING_RULES = {
         message: "Camera monitoring stopped. Please reconnect or allow camera access.",
         durationMs: 0,
     },
+    identityMismatch: {
+        message: "Identity verification did not match the registered candidate.",
+        durationMs: 0,
+    },
 };
 
 const conditionState = Object.fromEntries(
     Object.keys(WARNING_RULES)
-        .filter((type) => type !== "cameraStopped")
+        .filter((type) => !["cameraStopped", "identityMismatch"].includes(type))
         .map((type) => [type, { since: null, warned: false }])
 );
 
@@ -80,6 +84,7 @@ const warningCountElement = document.getElementById("monitoring-warning-count");
 const connectionMessage = document.getElementById("main-exam-connection-message");
 const connectionMessageText = document.getElementById("main-exam-connection-message-text");
 const retryIdentityButton = document.getElementById("retry-identity-verification-btn");
+const retryIdentityWarningButton = document.getElementById("retry-identity-warning-btn");
 
 function updateWarningCounter() {
     if (!warningCountElement) return;
@@ -272,6 +277,10 @@ function endExamForWarningLimit() {
         warningDismissButton.hidden = true;
         warningDismissButton.disabled = true;
     }
+    if (retryIdentityWarningButton) {
+        retryIdentityWarningButton.hidden = true;
+        retryIdentityWarningButton.disabled = true;
+    }
     if (warningModal) {
         warningModal.hidden = false;
         warningModal.setAttribute("aria-modal", "true");
@@ -286,12 +295,21 @@ function showNextWarning() {
     if (activeWarning || warningQueue.length === 0 || !warningModal || warningTerminationStarted) return;
 
     activeWarning = warningQueue.shift();
+    const isIdentityMismatch = activeWarning.type === "identityMismatch";
     if (warningTitle) {
-        warningTitle.textContent = `Warning ${activeWarning.warningNumber} of ${MAX_WARNINGS}`;
+        warningTitle.textContent = isIdentityMismatch
+            ? `Identity verification warning ${activeWarning.warningNumber} of ${MAX_WARNINGS}`
+            : `Warning ${activeWarning.warningNumber} of ${MAX_WARNINGS}`;
     }
-    warningMessage.textContent = `${WARNING_RULES[activeWarning.type].message} One more warning will end the exam.`;
-    warningDismissButton.hidden = false;
-    warningDismissButton.disabled = false;
+    warningMessage.textContent = isIdentityMismatch
+        ? `${WARNING_RULES[activeWarning.type].message} Click “Retry identity verification” to try again. One more warning will end the exam.`
+        : `${WARNING_RULES[activeWarning.type].message} One more warning will end the exam.`;
+    warningDismissButton.hidden = isIdentityMismatch;
+    warningDismissButton.disabled = isIdentityMismatch;
+    if (retryIdentityWarningButton) {
+        retryIdentityWarningButton.hidden = !isIdentityMismatch;
+        retryIdentityWarningButton.disabled = false;
+    }
     warningModal.setAttribute("aria-modal", "false");
     warningModal.hidden = false;
     warningDismissButton?.focus({ preventScroll: true });
@@ -304,6 +322,30 @@ function dismissWarning() {
     activeWarning = null;
     if (warningModal) warningModal.hidden = true;
     showNextWarning();
+}
+
+async function retryIdentityFromWarning() {
+    if (
+        !activeWarning ||
+        activeWarning.type !== "identityMismatch" ||
+        warningTerminationStarted ||
+        !retryIdentityWarningButton
+    ) return;
+
+    activeWarning = null;
+    warningModal.hidden = true;
+    retryIdentityWarningButton.disabled = true;
+    showNextWarning();
+
+    try {
+        hideConnectionIssue();
+        await runIdentityVerification();
+    } catch (error) {
+        console.error("Identity verification failed", { errorName: error?.name || "Error" });
+        showConnectionIssue(true);
+    } finally {
+        retryIdentityWarningButton.disabled = false;
+    }
 }
 
 function updateCondition(type, isPresent, now) {
@@ -582,7 +624,26 @@ async function captureIdentityImageFromExistingStream() {
         method: "POST",
         body: formData,
     });
-    if (!data.success) throw new Error(IDENTITY_VERIFICATION_RESPONSE_ERROR);
+    return handleIdentityVerificationResult(data);
+}
+
+function handleIdentityVerificationResult(data) {
+    if (data?.success === true) return "match";
+    if (data?.code === "identity_mismatch") {
+        enqueueWarning("identityMismatch", 0);
+        return "mismatch";
+    }
+    throw new Error(IDENTITY_VERIFICATION_RESPONSE_ERROR);
+}
+
+async function runIdentityVerification() {
+    const result = await captureIdentityImageFromExistingStream();
+    if (result === "match") {
+        hideConnectionIssue();
+        return result;
+    }
+
+    return result;
 }
 
 async function verifyIdentityAndHandleFailure() {
@@ -590,7 +651,7 @@ async function verifyIdentityAndHandleFailure() {
     hideConnectionIssue();
     retryIdentityButton.disabled = true;
     try {
-        await captureIdentityImageFromExistingStream();
+        await runIdentityVerification();
     } catch (error) {
         console.error("Identity verification failed", { errorName: error?.name || "Error" });
         showConnectionIssue(true);
@@ -610,7 +671,7 @@ function startExam() {
     examSection.hidden = false;
     monitoringLoopId = requestAnimationFrame(runInference);
 
-    captureIdentityImageFromExistingStream().catch((error) => {
+    runIdentityVerification().catch((error) => {
         console.error("Identity verification failed", { errorName: error?.name || "Error" });
         showConnectionIssue(true);
     });
@@ -691,6 +752,7 @@ retryMonitoringButton.addEventListener("click", () => {
 
 warningDismissButton.addEventListener("click", dismissWarning);
 retryIdentityButton?.addEventListener("click", verifyIdentityAndHandleFailure);
+retryIdentityWarningButton?.addEventListener("click", retryIdentityFromWarning);
 startButton.addEventListener("click", startExam);
 
 window.addEventListener("pagehide", cleanupCameraAndMonitoring, { once: true });

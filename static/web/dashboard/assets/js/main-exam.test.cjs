@@ -102,12 +102,16 @@ function response(status, contentType, body) {
         "retry-monitoring-btn", "monitoring-warning-modal", "monitoring-warning-title",
         "monitoring-warning-message", "monitoring-warning-dismiss", "monitoring-warning-count",
         "main-exam-connection-message", "main-exam-connection-message-text",
-        "retry-identity-verification-btn",
+        "retry-identity-verification-btn", "retry-identity-warning-btn",
     ].forEach(makeElement);
+    warningElements.get("video-preview").readyState = 2;
+    warningElements.get("video-preview").videoWidth = 640;
+    warningElements.get("video-preview").videoHeight = 360;
 
     const warningCallbacks = [];
     let redirectCount = 0;
     let stoppedTracks = 0;
+    let identityResponse = { success: true };
     const warningStream = {
         getTracks: () => [{ stop() { stoppedTracks += 1; } }],
     };
@@ -138,8 +142,17 @@ function response(status, contentType, body) {
                 identityVerificationUrl: "/test/exam/capture_image/",
             } },
             getElementById(id) { return warningElements.get(id) || null; },
-            querySelector() { return null; },
+            querySelector() { return { value: "csrf-token" }; },
             querySelectorAll() { return []; },
+            createElement(tagName) {
+                if (tagName !== "canvas") return {};
+                return {
+                    width: 0,
+                    height: 0,
+                    getContext() { return { drawImage() {} }; },
+                    toBlob(callback) { callback(new Blob(["image"])); },
+                };
+            },
             addEventListener() {},
         },
         navigator: {},
@@ -148,28 +161,58 @@ function response(status, contentType, body) {
         stream: warningStream,
     };
     warningContext.window.document = warningContext.document;
+    warningContext.fetch = async () => response(200, "application/json", JSON.stringify(identityResponse));
     vm.createContext(warningContext);
-    vm.runInContext(`${source}\nexamStarted = true;\nmediaStream = stream;\nmonitoringActive = true;\nglobalThis.warningTest = {\n  updateCondition,\n  dismissWarning,\n  handleMonitoringFailure,\n  state: () => ({ count: warningCount, title: warningTitle.textContent, message: warningMessage.textContent, active: monitoringActive, cleanup: cleanupStarted })\n};`, warningContext);
+    vm.runInContext(`${source}\nexamStarted = true;\nmediaStream = stream;\nmonitoringActive = true;\nglobalThis.warningTest = {\n  updateCondition,\n  dismissWarning,\n  handleMonitoringFailure,\n  handleIdentityVerificationResult,\n  retryIdentityFromWarning,\n  state: () => ({ count: warningCount, title: warningTitle.textContent, message: warningMessage.textContent, active: monitoringActive, cleanup: cleanupStarted })\n};`, warningContext);
 
-    warningContext.warningTest.updateCondition("noFace", true, 0);
-    warningContext.warningTest.updateCondition("noFace", true, 3000);
+    assert.strictEqual(warningContext.warningTest.state().count, 0);
+    assert.strictEqual(warningContext.warningTest.handleIdentityVerificationResult({ success: true }), "match");
+    assert.strictEqual(warningContext.warningTest.state().count, 0);
+    assert.throws(
+        () => warningContext.warningTest.handleIdentityVerificationResult({
+            success: false,
+            code: "identity_verification_unavailable",
+        }),
+        /temporary connection issue/
+    );
+    assert.strictEqual(warningContext.warningTest.state().count, 0);
+
+    assert.strictEqual(
+        warningContext.warningTest.handleIdentityVerificationResult({
+            success: false,
+            code: "identity_mismatch",
+        }),
+        "mismatch"
+    );
     assert.strictEqual(warningContext.warningTest.state().count, 1);
     assert.strictEqual(warningElements.get("monitoring-warning-count").textContent, "Warnings: 1 / 3");
-    assert.match(warningContext.warningTest.state().title, /Warning 1 of 3/);
+    assert.match(warningContext.warningTest.state().title, /Identity verification warning 1 of 3/);
     assert.strictEqual(redirectCount, 0);
-    warningContext.warningTest.updateCondition("noFace", true, 12000);
+    identityResponse = { success: true };
+    await warningContext.warningTest.retryIdentityFromWarning();
     assert.strictEqual(warningContext.warningTest.state().count, 1);
-    warningContext.warningTest.dismissWarning();
 
-    warningContext.warningTest.updateCondition("multipleFaces", true, 0);
-    warningContext.warningTest.updateCondition("multipleFaces", true, 1000);
+    assert.strictEqual(
+        warningContext.warningTest.handleIdentityVerificationResult({
+            success: false,
+            code: "identity_mismatch",
+        }),
+        "mismatch"
+    );
     assert.strictEqual(warningContext.warningTest.state().count, 2);
     assert.strictEqual(warningElements.get("monitoring-warning-count").textContent, "Warnings: 2 / 3");
-    assert.match(warningContext.warningTest.state().title, /Warning 2 of 3/);
-    assert.strictEqual(redirectCount, 0);
-    warningContext.warningTest.dismissWarning();
+    assert.match(warningContext.warningTest.state().title, /Identity verification warning 2 of 3/);
+    identityResponse = { success: true };
+    await warningContext.warningTest.retryIdentityFromWarning();
+    assert.strictEqual(warningContext.warningTest.state().count, 2);
 
-    warningContext.warningTest.handleMonitoringFailure("Camera stopped");
+    assert.strictEqual(
+        warningContext.warningTest.handleIdentityVerificationResult({
+            success: false,
+            code: "identity_mismatch",
+        }),
+        "mismatch"
+    );
     assert.strictEqual(warningContext.warningTest.state().count, 3);
     assert.strictEqual(warningElements.get("monitoring-warning-count").textContent, "Warnings: 3 / 3");
     assert.strictEqual(
@@ -180,6 +223,23 @@ function response(status, contentType, body) {
     assert.strictEqual(warningContext.warningTest.state().cleanup, true);
     assert.strictEqual(stoppedTracks, 1);
     warningContext.warningTest.handleMonitoringFailure("Camera stopped again");
+    warningCallbacks.forEach((callback) => callback());
+    assert.strictEqual(redirectCount, 1);
+    warningCallbacks.length = 0;
+    redirectCount = 0;
+
+    vm.runInContext(`warningCount = 0; warningTerminationStarted = false; cleanupStarted = false; monitoringActive = true; mediaStream = stream; activeWarning = null; warningQueue.length = 0; warningCooldowns.clear(); cameraStoppedIncidentActive = false; Object.values(conditionState).forEach((condition) => { condition.since = null; condition.warned = false; }); warningModal.hidden = true;`, warningContext);
+
+    warningContext.warningTest.handleIdentityVerificationResult({ success: false, code: "identity_mismatch" });
+    identityResponse = { success: true };
+    await warningContext.warningTest.retryIdentityFromWarning();
+    warningContext.warningTest.updateCondition("noFace", true, 0);
+    warningContext.warningTest.updateCondition("noFace", true, 3000);
+    assert.strictEqual(warningContext.warningTest.state().count, 2);
+    assert.strictEqual(warningElements.get("monitoring-warning-count").textContent, "Warnings: 2 / 3");
+    warningContext.warningTest.dismissWarning();
+    warningContext.warningTest.handleIdentityVerificationResult({ success: false, code: "identity_mismatch" });
+    assert.strictEqual(warningContext.warningTest.state().count, 3);
     warningCallbacks.forEach((callback) => callback());
     assert.strictEqual(redirectCount, 1);
 

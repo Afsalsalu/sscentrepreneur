@@ -1902,12 +1902,24 @@ def capture_image(request):
                             print('user is verfied.......!!!!!!!!!')
                             return JsonResponse({'success': True, 'message': 'Face verification successful'})
                         else:
-                            return JsonResponse({'success': False, 'message': 'Face verification failed', 'redirect_url': reverse('exam:dashboard')})
+                            return JsonResponse({
+                                'success': False,
+                                'code': 'identity_mismatch',
+                                'message': 'Face verification failed',
+                            })
                     else:
-                        return JsonResponse({'success': False, 'message': 'ArcFace model result not found', 'redirect_url': reverse('exam:dashboard')})
+                        return JsonResponse({
+                            'success': False,
+                            'code': 'identity_verification_unavailable',
+                            'message': 'Identity verification is temporarily unavailable.',
+                        }, status=502)
 
                 else:
-                    return JsonResponse({'success': False, 'message': 'API error', 'redirect_url': reverse('exam:dashboard')})
+                    return JsonResponse({
+                        'success': False,
+                        'code': 'identity_verification_unavailable',
+                        'message': 'Identity verification is temporarily unavailable.',
+                    }, status=502)
             else:
                 print('Data already exists')
                 exam_validation = ExamValidation.objects.get(user=document_image)
@@ -1950,15 +1962,31 @@ def capture_image(request):
                             return JsonResponse({'success': True, 'message': 'Face verification successful'})
                         else:
                             print('faileddd........!!!!!!!!!')
-                            return JsonResponse({'success': False, 'message': 'Face verification failed', 'redirect_url': reverse('exam:main_exam_login')})
+                            return JsonResponse({
+                                'success': False,
+                                'code': 'identity_mismatch',
+                                'message': 'Face verification failed',
+                            })
                     else:
-                        return JsonResponse({'success': False, 'message': 'ArcFace model result not found', 'redirect_url': reverse('exam:dashboard')})
+                        return JsonResponse({
+                            'success': False,
+                            'code': 'identity_verification_unavailable',
+                            'message': 'Identity verification is temporarily unavailable.',
+                        }, status=502)
 
                 else:
-                    return JsonResponse({'success': False, 'message': 'API error', 'redirect_url': reverse('exam:dashboard')})
+                    return JsonResponse({
+                        'success': False,
+                        'code': 'identity_verification_unavailable',
+                        'message': 'Identity verification is temporarily unavailable.',
+                    }, status=502)
 
         except TemporaryUser.DoesNotExist:
-            return JsonResponse({'success': False, 'message': 'User not found', 'redirect_url': reverse('exam:dashboard')})
+            return JsonResponse({
+                'success': False,
+                'code': 'identity_verification_unavailable',
+                'message': 'Identity verification is temporarily unavailable.',
+            }, status=502)
         except Exception:
             logger.exception("Main Exam identity verification endpoint failed")
             return JsonResponse(
@@ -1966,7 +1994,11 @@ def capture_image(request):
                 status=502,
             )
 
-    return JsonResponse({'success': False, 'message': 'No image received', 'redirect_url': reverse('exam:dashboard')})
+    return JsonResponse({
+        'success': False,
+        'code': 'identity_verification_unavailable',
+        'message': 'Identity verification is temporarily unavailable.',
+    }, status=400)
 
 
 import re
