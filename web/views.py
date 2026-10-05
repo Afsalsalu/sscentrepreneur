@@ -84,6 +84,13 @@ def safe_redirect(request):
 from django.shortcuts import render
 
 def custom_csrf_failure(request, reason=""):
+    accepts_json = "application/json" in request.headers.get("Accept", "").lower()
+    is_ajax = request.headers.get("X-Requested-With", "").lower() == "xmlhttprequest"
+    if accepts_json or is_ajax:
+        return JsonResponse(
+            {"success": False, "message": "Request could not be verified."},
+            status=403,
+        )
     return redirect("exam:entrepreneur_userlogin")
     
 @ratelimit(key="ip", rate="5/m", method="POST", block=True)

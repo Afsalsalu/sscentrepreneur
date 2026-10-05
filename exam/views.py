@@ -1,5 +1,6 @@
 # Django imports for views, request handling, and authentication
 import json
+import logging
 import random
 import string
 import uuid
@@ -41,6 +42,8 @@ from web.forms import CentreUserForm
 from web.models import CentreUserAccount
 
 from .constants import PaymentStatus
+
+logger = logging.getLogger(__name__)
 # Django imports for models, forms, and utility functions
 from .forms import UserRegistrationForm
 from .models import (ExamCategory, MainExamOption, MainExamProgress,
@@ -1801,9 +1804,15 @@ def upload_images(request):
             aadhaar = ContentFile(aadhaar_bytes, name="aadhaar.jpg")
             photo = ContentFile(photo_bytes, name="user.jpg")
 
-            user = TemporaryUser.objects.get(user=request.user)
-
-            DocumentValidation.objects.create(user=user, aadhaar=aadhaar, photo=photo)
+            try:
+                user = TemporaryUser.objects.get(user=request.user)
+                DocumentValidation.objects.create(user=user, aadhaar=aadhaar, photo=photo)
+            except Exception:
+                logger.exception("Document validation upload endpoint failed")
+                return JsonResponse(
+                    {"error": "Document upload could not be completed."},
+                    status=502,
+                )
 
             return JsonResponse({"message": "Images uploaded successfully!",
                                  "redirect_url": reverse("exam:main_exam")}, status=201)
@@ -1813,20 +1822,39 @@ def upload_images(request):
 import os
 from exam.models.user_registration import ExamValidation
 import requests
+
+
+def _read_arcface_json(response):
+    content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if content_type != "application/json" and not content_type.endswith("+json"):
+        return None
+    try:
+        return response.json()
+    except (TypeError, ValueError):
+        return None
+
+
 def capture_image(request):
     if request.method == 'POST' and request.FILES.get('captured_image'):
         image = request.FILES['captured_image']
 
-        image_dir = os.path.join(settings.MEDIA_ROOT, 'examvalidation')
-        os.makedirs(image_dir, exist_ok=True)
+        try:
+            image_dir = os.path.join(settings.MEDIA_ROOT, 'examvalidation')
+            os.makedirs(image_dir, exist_ok=True)
 
-        unique_filename = f'exam_image_{uuid.uuid4().hex}.jpg'
+            unique_filename = f'exam_image_{uuid.uuid4().hex}.jpg'
 
-        # Save the uploaded image
-        image_path = os.path.join(image_dir, unique_filename)
-        with open(image_path, 'wb') as img_file:
-            for chunk in image.chunks():
-                img_file.write(chunk)
+            # Save the uploaded image
+            image_path = os.path.join(image_dir, unique_filename)
+            with open(image_path, 'wb') as img_file:
+                for chunk in image.chunks():
+                    img_file.write(chunk)
+        except Exception:
+            logger.exception("Main Exam identity image could not be saved")
+            return JsonResponse(
+                {"success": False, "message": "Identity verification is temporarily unavailable."},
+                status=502,
+            )
 
         try:
             temp_user = TemporaryUser.objects.get(user=request.user)
@@ -1856,7 +1884,12 @@ def capture_image(request):
                     response = requests.post(api_url, files=files, data=data)
 
                 if response.status_code == 200:
-                    result = response.json()
+                    result = _read_arcface_json(response)
+                    if result is None:
+                        return JsonResponse(
+                            {"success": False, "message": "Identity verification is temporarily unavailable."},
+                            status=502,
+                        )
 
                     # Filter ArcFace result only
                     arcface_result = next(
@@ -1898,7 +1931,12 @@ def capture_image(request):
                     response = requests.post(api_url, files=files, data=data)
 
                 if response.status_code == 200:
-                    result = response.json()
+                    result = _read_arcface_json(response)
+                    if result is None:
+                        return JsonResponse(
+                            {"success": False, "message": "Identity verification is temporarily unavailable."},
+                            status=502,
+                        )
 
                     # Filter ArcFace result only
                     arcface_result = next(
@@ -1921,6 +1959,12 @@ def capture_image(request):
 
         except TemporaryUser.DoesNotExist:
             return JsonResponse({'success': False, 'message': 'User not found', 'redirect_url': reverse('exam:dashboard')})
+        except Exception:
+            logger.exception("Main Exam identity verification endpoint failed")
+            return JsonResponse(
+                {"success": False, "message": "Identity verification is temporarily unavailable."},
+                status=502,
+            )
 
     return JsonResponse({'success': False, 'message': 'No image received', 'redirect_url': reverse('exam:dashboard')})
 

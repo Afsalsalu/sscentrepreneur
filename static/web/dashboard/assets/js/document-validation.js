@@ -13,6 +13,7 @@
     const cameraError = document.getElementById("camera-error");
     const cameraErrorMessage = document.getElementById("camera-error-message");
     const retryCameraButton = document.getElementById("retry-camera-btn");
+    const uploadError = document.getElementById("document-upload-error");
 
     let cameraStream = null;
     let userImage = "";
@@ -63,6 +64,16 @@
     function clearCameraError() {
         if (cameraError) cameraError.hidden = true;
         if (retryCameraButton) retryCameraButton.hidden = true;
+    }
+
+    function showUploadError(message = DOCUMENT_UPLOAD_RESPONSE_ERROR) {
+        if (!uploadError) return;
+        uploadError.textContent = message;
+        uploadError.hidden = false;
+    }
+
+    function clearUploadError() {
+        if (uploadError) uploadError.hidden = true;
     }
 
     function stopCamera() {
@@ -164,11 +175,12 @@
 
     async function uploadImages() {
         if (!uploadUrl || !userImage || !aadhaarImage) {
-            window.alert("Please capture both images before uploading.");
+            showUploadError("Please capture both images before uploading.");
             return;
         }
 
         uploadButton.disabled = true;
+        clearUploadError();
         document.getElementById("user-loading").style.display = "block";
         document.getElementById("aadhaar-loading").style.display = "block";
 
@@ -193,8 +205,8 @@
             document.getElementById("aadhaar-success").style.display = "block";
             if (data.redirect_url) window.location.assign(data.redirect_url);
         } catch (error) {
-            console.error("Error uploading images:", error);
-            window.alert(error.message || "Images could not be uploaded. Please try again.");
+            console.error("Document upload failed", { errorName: error?.name || "Error" });
+            showUploadError(DOCUMENT_UPLOAD_RESPONSE_ERROR);
             uploadButton.disabled = false;
         } finally {
             document.getElementById("user-loading").style.display = "none";

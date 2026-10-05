@@ -134,7 +134,13 @@
     </style>
 </head>
 
-<body>
+<body
+    data-submit-url="{% url 'exam:main_exam' %}"
+    data-dashboard-url="{% url 'exam:dashboard' %}"
+    data-identity-verification-url="{% url 'exam:capture_image' %}"
+    data-mediapipe-package-url="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/+esm"
+    data-mediapipe-wasm-url="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
+    data-face-landmarker-model-url="https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task">
     <main class="main-exam-shell">
         <section class="main-exam-camera-panel" aria-labelledby="camera-monitoring-heading">
             <h2 id="camera-monitoring-heading" class="visually-hidden">Camera monitoring</h2>
@@ -144,6 +150,13 @@
             </div>
             <div id="monitoring-warning-count" class="camera-monitoring-warning-count" aria-live="polite">
                 Warnings: 0 / 3
+            </div>
+            <div id="main-exam-connection-message" class="main-exam-connection-message" role="status"
+                aria-live="polite" hidden>
+                <span id="main-exam-connection-message-text">A temporary connection issue occurred. Please continue your exam or try again.</span>
+                <button id="retry-identity-verification-btn" class="btn btn-secondary" type="button" hidden>
+                    Try identity verification again
+                </button>
             </div>
             <video id="video-preview" width="320" height="240" autoplay muted playsinline hidden></video>
             <div id="monitoring-setup-error" class="monitoring-setup-error" role="alert" hidden>
@@ -236,16 +249,6 @@
         </section>
     </main>
 
-    <script>
-        window.MAIN_EXAM_CONFIG = {
-            submitUrl: "{% url 'exam:main_exam' %}",
-            dashboardUrl: "{% url 'exam:dashboard' %}",
-            identityVerificationUrl: "{% url 'exam:capture_image' %}",
-            mediapipePackageUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/+esm",
-            mediapipeWasmUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm",
-            faceLandmarkerModelUrl: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
-        };
-    </script>
     <script type="module" src="{% static 'web/dashboard/assets/js/main-exam.js' %}"></script>
 </body>
 

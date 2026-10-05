@@ -1,7 +1,16 @@
-const config = window.MAIN_EXAM_CONFIG || {};
+const pageData = document.body?.dataset || {};
+const config = Object.freeze({
+    submitUrl: pageData.submitUrl || "",
+    dashboardUrl: pageData.dashboardUrl || "",
+    identityVerificationUrl: pageData.identityVerificationUrl || "",
+    mediapipePackageUrl: pageData.mediapipePackageUrl || "",
+    mediapipeWasmUrl: pageData.mediapipeWasmUrl || "",
+    faceLandmarkerModelUrl: pageData.faceLandmarkerModelUrl || "",
+});
 
-const IDENTITY_VERIFICATION_RESPONSE_ERROR =
-    "Identity verification could not be completed. Please start the exam again.";
+const TEMPORARY_CONNECTION_MESSAGE =
+    "A temporary connection issue occurred. Please continue your exam or try again.";
+const IDENTITY_VERIFICATION_RESPONSE_ERROR = TEMPORARY_CONNECTION_MESSAGE;
 const WARNING_COOLDOWN_MS = 8000;
 const MAX_WARNINGS = 3;
 const INFERENCE_INTERVAL_MS = 100;
@@ -68,6 +77,9 @@ const warningTitle = document.getElementById("monitoring-warning-title");
 const warningMessage = document.getElementById("monitoring-warning-message");
 const warningDismissButton = document.getElementById("monitoring-warning-dismiss");
 const warningCountElement = document.getElementById("monitoring-warning-count");
+const connectionMessage = document.getElementById("main-exam-connection-message");
+const connectionMessageText = document.getElementById("main-exam-connection-message-text");
+const retryIdentityButton = document.getElementById("retry-identity-verification-btn");
 
 function updateWarningCounter() {
     if (!warningCountElement) return;
@@ -76,21 +88,82 @@ function updateWarningCounter() {
 }
 
 function responseHasJsonContentType(response) {
-    const contentType = response.headers.get("content-type") || "";
+    const contentType = response.headers?.get("content-type") || "";
     const mediaType = contentType.split(";", 1)[0].trim().toLowerCase();
     return mediaType === "application/json" || mediaType.endsWith("+json");
 }
 
-async function parseJsonResponse(response, fallbackMessage) {
+function getCsrfToken() {
+    return document.querySelector("input[name='csrfmiddlewaretoken']")?.value
+        || document.querySelector("meta[name='csrf-token']")?.content
+        || "";
+}
+
+function responseDiagnostic(response, requestUrl, method) {
+    return {
+        method,
+        requestUrl,
+        finalUrl: response?.url || requestUrl,
+        status: response?.status,
+        contentType: response?.headers?.get("content-type") || "",
+    };
+}
+
+async function requestJson(requestUrl, options = {}) {
+    const method = String(options.method || "GET").toUpperCase();
+    const headers = new Headers(options.headers || {});
+    headers.set("Accept", "application/json");
+
+    if (!["GET", "HEAD", "OPTIONS"].includes(method) && !headers.has("X-CSRFToken")) {
+        const csrfToken = getCsrfToken();
+        if (csrfToken) headers.set("X-CSRFToken", csrfToken);
+    }
+
+    let response;
+    try {
+        response = await fetch(requestUrl, {
+            ...options,
+            method,
+            headers,
+            credentials: "same-origin",
+        });
+    } catch (error) {
+        console.error("Main Exam request network failure", {
+            method,
+            requestUrl,
+            errorName: error?.name || "Error",
+        });
+        throw new Error(TEMPORARY_CONNECTION_MESSAGE);
+    }
+
+    const diagnostic = responseDiagnostic(response, requestUrl, method);
     if (!response.ok || !responseHasJsonContentType(response)) {
-        throw new Error(fallbackMessage);
+        console.error("Main Exam request did not return JSON", diagnostic);
+        throw new Error(TEMPORARY_CONNECTION_MESSAGE);
     }
 
     try {
         return await response.json();
-    } catch {
-        console.error("Main Exam JSON response parsing failed.");
-        throw new Error(fallbackMessage);
+    } catch (error) {
+        console.error("Main Exam JSON response parsing failed", diagnostic);
+        throw new Error(TEMPORARY_CONNECTION_MESSAGE);
+    }
+}
+
+function showConnectionIssue(showRetry = true) {
+    if (connectionMessageText) connectionMessageText.textContent = TEMPORARY_CONNECTION_MESSAGE;
+    if (connectionMessage) connectionMessage.hidden = false;
+    if (retryIdentityButton) {
+        retryIdentityButton.hidden = !showRetry;
+        retryIdentityButton.disabled = false;
+    }
+}
+
+function hideConnectionIssue() {
+    if (connectionMessage) connectionMessage.hidden = true;
+    if (retryIdentityButton) {
+        retryIdentityButton.hidden = true;
+        retryIdentityButton.disabled = false;
     }
 }
 
@@ -480,7 +553,7 @@ async function prepareMonitoring() {
         console.error("Camera monitoring setup error:", error);
         stopMonitoringLoop();
         stopCamera();
-        showSetupError(error.message || "Camera monitoring could not be started.");
+        showSetupError("Camera monitoring could not be started. Please allow camera access and retry.");
     }
 }
 
@@ -500,36 +573,36 @@ async function captureIdentityImageFromExistingStream() {
 
     const formData = new FormData();
     formData.append("captured_image", blob, "image.jpg");
-    const csrfToken = document.querySelector("input[name='csrfmiddlewaretoken']")?.value
-        || document.querySelector("meta[name='csrf-token']")?.content;
 
     if (!config.identityVerificationUrl) {
         throw new Error(IDENTITY_VERIFICATION_RESPONSE_ERROR);
     }
 
-    let response;
-    try {
-        response = await fetch(config.identityVerificationUrl, {
-            method: "POST",
-            credentials: "same-origin",
-            headers: {
-                Accept: "application/json",
-                ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
-            },
-            body: formData,
-        });
-    } catch (error) {
-        console.error("Identity verification request failed:", error);
-        throw new Error(IDENTITY_VERIFICATION_RESPONSE_ERROR);
-    }
+    const data = await requestJson(config.identityVerificationUrl, {
+        method: "POST",
+        body: formData,
+    });
+    if (!data.success) throw new Error(IDENTITY_VERIFICATION_RESPONSE_ERROR);
+}
 
-    const data = await parseJsonResponse(response, IDENTITY_VERIFICATION_RESPONSE_ERROR);
-    if (!data.success) throw new Error(data.message || "Candidate identity verification failed.");
+async function verifyIdentityAndHandleFailure() {
+    if (!retryIdentityButton || retryIdentityButton.disabled) return;
+    hideConnectionIssue();
+    retryIdentityButton.disabled = true;
+    try {
+        await captureIdentityImageFromExistingStream();
+    } catch (error) {
+        console.error("Identity verification failed", { errorName: error?.name || "Error" });
+        showConnectionIssue(true);
+    } finally {
+        retryIdentityButton.disabled = false;
+    }
 }
 
 function startExam() {
     if (!monitoringReady || !mediaStream) return;
 
+    hideConnectionIssue();
     examStarted = true;
     monitoringActive = true;
     setStatus("Camera monitoring active", "active");
@@ -538,10 +611,8 @@ function startExam() {
     monitoringLoopId = requestAnimationFrame(runInference);
 
     captureIdentityImageFromExistingStream().catch((error) => {
-        console.error("Identity verification error:", error);
-        window.alert(error.message || "User verification failed. Your attempt will be redirected.");
-        cleanupCameraAndMonitoring();
-        window.location.assign(config.dashboardUrl);
+        console.error("Identity verification failed", { errorName: error?.name || "Error" });
+        showConnectionIssue(true);
     });
 }
 
@@ -619,6 +690,7 @@ retryMonitoringButton.addEventListener("click", () => {
 });
 
 warningDismissButton.addEventListener("click", dismissWarning);
+retryIdentityButton?.addEventListener("click", verifyIdentityAndHandleFailure);
 startButton.addEventListener("click", startExam);
 
 window.addEventListener("pagehide", cleanupCameraAndMonitoring, { once: true });

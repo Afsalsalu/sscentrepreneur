@@ -177,6 +177,27 @@ ul li {
     border-color: #e4a5a5;
 }
 
+.main-exam-connection-message {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 8px;
+    color: #6b4f00;
+    background: #fff8e7;
+    border: 1px solid #f0d28a;
+    border-radius: 5px;
+    font-size: 0.82rem;
+    line-height: 1.35;
+}
+
+.main-exam-connection-message button {
+    justify-self: start;
+    padding: 5px 8px;
+    color: #fff;
+    background: #007a9b;
+    font-size: 0.78rem;
+}
+
 .monitoring-setup-error {
     margin-top: 8px;
     padding: 10px;
