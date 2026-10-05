@@ -136,6 +136,19 @@
 
 <body>
     <main class="main-exam-shell">
+        <section class="main-exam-camera-panel" aria-labelledby="camera-monitoring-heading">
+            <h2 id="camera-monitoring-heading" class="visually-hidden">Camera monitoring</h2>
+            <div class="camera-monitoring-label">Camera Monitoring</div>
+            <div id="camera-monitoring-status" class="camera-monitoring-status" role="status" aria-live="polite">
+                Camera monitoring setup in progress...
+            </div>
+            <video id="video-preview" width="320" height="240" autoplay muted playsinline hidden></video>
+            <div id="monitoring-setup-error" class="monitoring-setup-error" role="alert" hidden>
+                <p id="monitoring-setup-error-message">Camera monitoring setup is required before starting the exam.</p>
+                <button id="retry-monitoring-btn" class="btn btn-danger" type="button">Retry camera monitoring</button>
+            </div>
+        </section>
+
         <section id="initialDiv" class="main-exam-intro">
             <h1>{{ exam_category.name }}</h1>
             <button id="startButton" class="btn btn-primary" type="button" disabled>
@@ -151,18 +164,6 @@
                 <p>Submit Exam Only After Attempting All Questions: The "Submit Exam" button should be used after attempting the questions.</p>
                 <p>Stable Internet: Ensure that you have a stable internet connection before starting the exam.</p>
                 <p>No External Help: The use of books, notes, external devices, or assistance from others during the exam is prohibited.</p>
-            </div>
-        </section>
-
-        <section class="main-exam-camera-panel" aria-labelledby="camera-monitoring-heading">
-            <h2 id="camera-monitoring-heading" class="visually-hidden">Camera monitoring</h2>
-            <div id="camera-monitoring-status" class="camera-monitoring-status" role="status" aria-live="polite">
-                Camera monitoring setup in progress...
-            </div>
-            <video id="video-preview" width="320" height="240" autoplay muted playsinline hidden></video>
-            <div id="monitoring-setup-error" class="monitoring-setup-error" role="alert" hidden>
-                <p id="monitoring-setup-error-message">Camera monitoring setup is required before starting the exam.</p>
-                <button id="retry-monitoring-btn" class="btn btn-danger" type="button">Retry camera monitoring</button>
             </div>
         </section>
 
