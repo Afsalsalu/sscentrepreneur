@@ -1,4 +1,5 @@
 (() => {
+    const DOCUMENT_UPLOAD_RESPONSE_ERROR = "Document upload could not be completed. Please retry.";
     const uploadUrl = document.body?.dataset.uploadUrl || "";
     const userVideo = document.getElementById("user-video");
     const aadhaarVideo = document.getElementById("aadhaar-video");
@@ -16,6 +17,25 @@
     let cameraStream = null;
     let userImage = "";
     let aadhaarImage = "";
+
+    function responseHasJsonContentType(response) {
+        const contentType = response.headers?.get("content-type") || "";
+        const mediaType = contentType.split(";", 1)[0].trim().toLowerCase();
+        return mediaType === "application/json" || mediaType.endsWith("+json");
+    }
+
+    async function parseJsonResponse(response, fallbackMessage) {
+        if (!response.ok || !responseHasJsonContentType(response)) {
+            throw new Error(fallbackMessage);
+        }
+
+        try {
+            return await response.json();
+        } catch (error) {
+            console.error("Document validation JSON response parsing failed.");
+            throw new Error(fallbackMessage);
+        }
+    }
 
     function cameraErrorText(error) {
         switch (error?.name) {
@@ -158,6 +178,7 @@
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
+                    Accept: "application/json",
                     ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
                 },
                 credentials: "same-origin",
@@ -166,8 +187,7 @@
                     user_image: userImage,
                 }),
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || data.message || "Images could not be uploaded.");
+            const data = await parseJsonResponse(response, DOCUMENT_UPLOAD_RESPONSE_ERROR);
 
             document.getElementById("user-success").style.display = "block";
             document.getElementById("aadhaar-success").style.display = "block";
