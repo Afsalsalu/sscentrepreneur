@@ -160,6 +160,23 @@ ul li {
     color: #b42318;
 }
 
+.camera-monitoring-warning-count {
+    margin-top: 7px;
+    padding: 4px 7px;
+    color: #7a4b00;
+    background: #fff8e7;
+    border: 1px solid #f0d28a;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.camera-monitoring-warning-count[data-state="limit"] {
+    color: #8d1f1f;
+    background: #fdecec;
+    border-color: #e4a5a5;
+}
+
 .monitoring-setup-error {
     margin-top: 8px;
     padding: 10px;

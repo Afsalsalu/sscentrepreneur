@@ -1,6 +1,9 @@
 const config = window.MAIN_EXAM_CONFIG || {};
 
+const IDENTITY_VERIFICATION_RESPONSE_ERROR =
+    "Identity verification could not be completed. Please start the exam again.";
 const WARNING_COOLDOWN_MS = 8000;
+const MAX_WARNINGS = 3;
 const INFERENCE_INTERVAL_MS = 100;
 const WARNING_RULES = {
     noFace: {
@@ -28,7 +31,7 @@ const WARNING_RULES = {
 const conditionState = Object.fromEntries(
     Object.keys(WARNING_RULES)
         .filter((type) => type !== "cameraStopped")
-        .map((type) => [type, { since: null }])
+        .map((type) => [type, { since: null, warned: false }])
 );
 
 let faceLandmarker = null;
@@ -43,6 +46,9 @@ let lastInferenceAt = 0;
 let lastVideoTimestamp = 0;
 let capabilitiesChecked = false;
 let activeWarning = null;
+let warningCount = 0;
+let warningTerminationStarted = false;
+let cameraStoppedIncidentActive = false;
 const warningQueue = [];
 const warningCooldowns = new Map();
 const warningRecords = [];
@@ -58,8 +64,35 @@ const setupError = document.getElementById("monitoring-setup-error");
 const setupErrorMessage = document.getElementById("monitoring-setup-error-message");
 const retryMonitoringButton = document.getElementById("retry-monitoring-btn");
 const warningModal = document.getElementById("monitoring-warning-modal");
+const warningTitle = document.getElementById("monitoring-warning-title");
 const warningMessage = document.getElementById("monitoring-warning-message");
 const warningDismissButton = document.getElementById("monitoring-warning-dismiss");
+const warningCountElement = document.getElementById("monitoring-warning-count");
+
+function updateWarningCounter() {
+    if (!warningCountElement) return;
+    warningCountElement.textContent = `Warnings: ${warningCount} / ${MAX_WARNINGS}`;
+    warningCountElement.dataset.state = warningCount >= MAX_WARNINGS ? "limit" : "active";
+}
+
+function responseHasJsonContentType(response) {
+    const contentType = response.headers.get("content-type") || "";
+    const mediaType = contentType.split(";", 1)[0].trim().toLowerCase();
+    return mediaType === "application/json" || mediaType.endsWith("+json");
+}
+
+async function parseJsonResponse(response, fallbackMessage) {
+    if (!response.ok || !responseHasJsonContentType(response)) {
+        throw new Error(fallbackMessage);
+    }
+
+    try {
+        return await response.json();
+    } catch {
+        console.error("Main Exam JSON response parsing failed.");
+        throw new Error(fallbackMessage);
+    }
+}
 
 function setStatus(message, state = "ready") {
     if (!statusElement) return;
@@ -120,34 +153,79 @@ function isCooldownActive(type, now) {
 }
 
 function enqueueWarning(type, durationMs, now = performance.now()) {
-    if (!examStarted || cleanupStarted || !WARNING_RULES[type]) return;
-    if (isCooldownActive(type, now)) return;
-    if (activeWarning?.type === type || warningQueue.some((warning) => warning.type === type)) return;
+    if (!examStarted || cleanupStarted || warningTerminationStarted || !WARNING_RULES[type]) return false;
+    if (isCooldownActive(type, now)) return false;
+    if (activeWarning?.type === type || warningQueue.some((warning) => warning.type === type)) return false;
 
-    warningQueue.push({
+    warningCount += 1;
+    updateWarningCounter();
+
+    const warning = {
         type,
         timestamp: Date.now(),
         durationMs,
+        warningNumber: warningCount,
+    };
+    warningRecords.push({
+        eventType: warning.type,
+        timestamp: new Date(warning.timestamp).toISOString(),
+        durationMs: warning.durationMs,
+        warningNumber: warning.warningNumber,
     });
+
+    if (warningCount >= MAX_WARNINGS) {
+        endExamForWarningLimit();
+        return true;
+    }
+
+    warningQueue.push(warning);
     showNextWarning();
+    return true;
+}
+
+function endExamForWarningLimit() {
+    if (warningTerminationStarted) return;
+    warningTerminationStarted = true;
+    warningQueue.length = 0;
+    activeWarning = null;
+    cleanupCameraAndMonitoring();
+
+    if (warningTitle) warningTitle.textContent = "Exam ended";
+    if (warningMessage) {
+        warningMessage.textContent =
+            "Warning 3 of 3. Your exam has ended due to repeated monitoring violations.";
+    }
+    if (warningDismissButton) {
+        warningDismissButton.hidden = true;
+        warningDismissButton.disabled = true;
+    }
+    if (warningModal) {
+        warningModal.hidden = false;
+        warningModal.setAttribute("aria-modal", "true");
+    }
+
+    window.setTimeout(() => {
+        if (config.dashboardUrl) window.location.assign(config.dashboardUrl);
+    }, 4000);
 }
 
 function showNextWarning() {
-    if (activeWarning || warningQueue.length === 0 || !warningModal) return;
+    if (activeWarning || warningQueue.length === 0 || !warningModal || warningTerminationStarted) return;
 
     activeWarning = warningQueue.shift();
-    warningRecords.push({
-        eventType: activeWarning.type,
-        timestamp: new Date(activeWarning.timestamp).toISOString(),
-        durationMs: activeWarning.durationMs,
-    });
-    warningMessage.textContent = WARNING_RULES[activeWarning.type].message;
+    if (warningTitle) {
+        warningTitle.textContent = `Warning ${activeWarning.warningNumber} of ${MAX_WARNINGS}`;
+    }
+    warningMessage.textContent = `${WARNING_RULES[activeWarning.type].message} One more warning will end the exam.`;
+    warningDismissButton.hidden = false;
+    warningDismissButton.disabled = false;
+    warningModal.setAttribute("aria-modal", "false");
     warningModal.hidden = false;
     warningDismissButton?.focus({ preventScroll: true });
 }
 
 function dismissWarning() {
-    if (!activeWarning) return;
+    if (!activeWarning || warningTerminationStarted) return;
 
     warningCooldowns.set(activeWarning.type, performance.now());
     activeWarning = null;
@@ -161,13 +239,16 @@ function updateCondition(type, isPresent, now) {
 
     if (!isPresent) {
         condition.since = null;
+        condition.warned = false;
         return;
     }
+
+    if (condition.warned) return;
 
     if (condition.since === null) condition.since = now;
     const durationMs = now - condition.since;
     if (durationMs >= WARNING_RULES[type].durationMs) {
-        enqueueWarning(type, durationMs, now);
+        condition.warned = enqueueWarning(type, durationMs, now);
     }
 }
 
@@ -259,6 +340,8 @@ function processFaceResult(result, now) {
 }
 
 function handleMonitoringFailure(message, showWarning = true) {
+    if (cameraStoppedIncidentActive) return;
+    cameraStoppedIncidentActive = true;
     monitoringActive = false;
     stopMonitoringLoop();
     stopCamera();
@@ -370,8 +453,10 @@ async function prepareMonitoring() {
     monitoringReady = false;
     monitoringActive = false;
     capabilitiesChecked = false;
+    cameraStoppedIncidentActive = false;
     Object.values(conditionState).forEach((condition) => {
         condition.since = null;
+        condition.warned = false;
     });
     hideSetupError();
     setStatus("Preparing camera monitoring...", "loading");
@@ -418,12 +503,27 @@ async function captureIdentityImageFromExistingStream() {
     const csrfToken = document.querySelector("input[name='csrfmiddlewaretoken']")?.value
         || document.querySelector("meta[name='csrf-token']")?.content;
 
-    const response = await fetch(config.identityVerificationUrl, {
-        method: "POST",
-        headers: csrfToken ? { "X-CSRFToken": csrfToken } : {},
-        body: formData,
-    });
-    const data = await response.json();
+    if (!config.identityVerificationUrl) {
+        throw new Error(IDENTITY_VERIFICATION_RESPONSE_ERROR);
+    }
+
+    let response;
+    try {
+        response = await fetch(config.identityVerificationUrl, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                Accept: "application/json",
+                ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
+            },
+            body: formData,
+        });
+    } catch (error) {
+        console.error("Identity verification request failed:", error);
+        throw new Error(IDENTITY_VERIFICATION_RESPONSE_ERROR);
+    }
+
+    const data = await parseJsonResponse(response, IDENTITY_VERIFICATION_RESPONSE_ERROR);
     if (!data.success) throw new Error(data.message || "Candidate identity verification failed.");
 }
 
