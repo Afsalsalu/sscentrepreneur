@@ -3,430 +3,1430 @@
 {% block content %}
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css">
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.3/mapbox-gl-geocoder.css">
   <link rel="stylesheet" href="{% static 'web/dashboard/assets/css/register.css' %}">
   <link rel="icon" type="image/x-icon" href="/exam/register/images/favicon.ico">
   <link rel="icon" type="image/x-icon" href="{% static 'exam/register/images/favicon.ico' %}">
-  
 
   <style>
-          .error {
-        color: #fff;
-        padding: 10px;
-        border-radius: 5px;
-        margin-top: 10px;
-        text-align: center;
-        opacity: 1;
-        transition: opacity 0.5s ease-out;
-    }
-    .form-wrap {
-      position: relative;
-      padding: 30px;
-      background-color: #ffffff;
-      border-radius: 10px;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-      z-index: 2;
+    :root {
+      --registration-blue: #123f7a;
+      --registration-blue-dark: #092d5d;
+      --registration-blue-soft: #eaf2fc;
+      --registration-gold: #e6b65c;
+      --registration-ink: #17324d;
+      --registration-muted: #66768a;
+      --registration-border: #dbe4ee;
+      --registration-surface: #ffffff;
+      --registration-background: #f3f6fa;
+      --registration-danger: #b42318;
+      --registration-radius: 16px;
     }
 
-    .form-wrap::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image: url("{% static 'web/file/images/logoSSC-blue.png' %}");
-      background-size: 300px;
-      background-repeat: no-repeat;
-      background-position: center;
-      opacity: 0.1; /* Lower the opacity for a more transparent image */
-      z-index: -1;
+    body,
+    body.sub_page {
+      background: var(--registration-background);
+      color: var(--registration-ink);
+      font-family: "Roboto", "Segoe UI", Arial, sans-serif;
+      margin: 0;
     }
 
-    .form-wrap h4 {
-      font-size: 24px;
-      font-weight: bold;
-      color: #284478;
-      margin-bottom: 20px;
+    body .hero_area {
+      display: none !important;
     }
 
-    .form-group label {
-      font-size: 16px;
-      font-weight: 700;
-      color: #555;
-    }
-
-    .form-group input, .form-group select {
-      width: 100%;
-      height: 40px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      padding: 10px;
-      font-size: 14px;
-      box-sizing: border-box;
-      margin-top: 8px;
-      background-color: transparent;
-    }
-
-    .form-group input:focus, .form-group select:focus {
-      border-color: #284478;
-      outline: none;
-      background-color: #ffffff;
-    }
-
-    .form-group .error {
-      font-size: 12px;
-      color: red;
-      margin-top: 5px;
-    }
-
-    .form-group select {
-      height: 45px;
-      -webkit-appearance: none;
-      -moz-appearance: none;
-      appearance: none;
-      padding-right: 30px;
-    }
-
-    .form-group select:focus {
-      border-color: #284478;
-    }
-
-    .form-group button {
-      background-color: #284478;
+    .registration-header {
+      background: linear-gradient(115deg, var(--registration-blue-dark), var(--registration-blue));
+      border-bottom: 4px solid var(--registration-gold);
       color: #fff;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      font-size: 16px;
-      cursor: pointer;
-      margin-top: 20px;
+    }
+
+    .registration-header__inner {
+      align-items: center;
+      display: flex;
+      justify-content: space-between;
+      margin: 0 auto;
+      max-width: 1240px;
+      min-height: 82px;
+      padding: 10px 24px;
+    }
+
+    .registration-brand {
+      align-items: center;
+      display: flex;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .registration-brand img {
+      display: block;
+      object-fit: contain;
+    }
+
+    .registration-brand__gov {
+      height: 54px;
+      width: 44px;
+    }
+
+    .registration-brand__ssc {
+      border-left: 1px solid rgba(255, 255, 255, 0.35);
+      height: 42px;
+      padding-left: 14px;
+      width: 58px;
+    }
+
+    .registration-brand__samatwa {
+      height: 58px;
+      max-width: 205px;
+      width: auto;
+    }
+
+    .registration-header__motto {
+      color: rgba(255, 255, 255, 0.92);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      margin-left: 20px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .registration-page {
+      min-height: calc(100vh - 86px);
+      padding: 42px 16px 64px;
+    }
+
+    .registration-card {
+      background: var(--registration-surface);
+      border: 1px solid rgba(18, 63, 122, 0.09);
+      border-radius: 22px;
+      box-shadow: 0 18px 48px rgba(24, 52, 84, 0.1);
+      margin: 0 auto;
+      max-width: 1160px;
+      overflow: hidden;
+    }
+
+    .registration-card__body {
+      padding: 42px clamp(20px, 5vw, 64px) 48px;
+    }
+
+    .registration-intro {
+      margin: 0 auto 30px;
+      max-width: 760px;
+      text-align: center;
+    }
+
+    .registration-eyebrow {
+      color: var(--registration-blue);
+      font-size: 0.71rem;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      margin-bottom: 10px;
+    }
+
+    .registration-intro h1 {
+      color: var(--registration-blue-dark);
+      font-size: clamp(1.8rem, 3vw, 2.35rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+
+    .registration-intro p {
+      color: var(--registration-muted);
+      font-size: 0.98rem;
+      line-height: 1.6;
+      margin: 10px auto 0;
+      max-width: 650px;
+    }
+
+    .registration-steps {
+      align-items: flex-start;
+      display: flex;
+      justify-content: space-between;
+      list-style: none;
+      margin: 0 auto 38px;
+      max-width: 900px;
+      padding: 0;
+      position: relative;
+    }
+
+    .registration-steps::before {
+      background: var(--registration-border);
+      content: "";
+      height: 2px;
+      left: 10%;
+      position: absolute;
+      right: 10%;
+      top: 16px;
+      z-index: 0;
+    }
+
+    .registration-step {
+      align-items: center;
+      color: #8998a9;
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      font-size: 0.72rem;
+      font-weight: 700;
+      gap: 8px;
+      min-width: 0;
+      position: relative;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .registration-step__number {
+      align-items: center;
+      background: #fff;
+      border: 2px solid var(--registration-border);
+      border-radius: 50%;
+      color: #8090a2;
+      display: flex;
+      font-size: 0.75rem;
+      height: 34px;
+      justify-content: center;
+      width: 34px;
+    }
+
+    .registration-step.is-active {
+      color: var(--registration-blue);
+    }
+
+    .registration-step.is-active .registration-step__number {
+      background: var(--registration-blue);
+      border-color: var(--registration-blue);
+      box-shadow: 0 0 0 5px var(--registration-blue-soft);
+      color: #fff;
+    }
+
+    .server-error {
+      align-items: flex-start;
+      background: #fff2f0;
+      border: 1px solid #f2b8b5;
+      border-radius: 10px;
+      color: var(--registration-danger);
+      display: flex;
+      gap: 10px;
+      line-height: 1.45;
+      margin: 0 auto 26px;
+      max-width: 900px;
+      padding: 13px 16px;
+      transition: opacity 0.5s ease-out;
+    }
+
+    .form-section {
+      border-top: 1px solid var(--registration-border);
+      padding: 30px 0 4px;
+    }
+
+    .form-section:first-of-type {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .section-heading {
+      align-items: center;
+      display: flex;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .section-heading__icon {
+      align-items: center;
+      background: var(--registration-blue-soft);
+      border-radius: 10px;
+      color: var(--registration-blue);
+      display: inline-flex;
+      flex: 0 0 38px;
+      font-size: 1rem;
+      height: 38px;
+      justify-content: center;
+      width: 38px;
+    }
+
+    .section-heading h2 {
+      color: var(--registration-blue-dark);
+      font-size: 1.12rem;
+      font-weight: 800;
+      margin: 0;
+    }
+
+    .section-heading p {
+      color: var(--registration-muted);
+      font-size: 0.82rem;
+      margin: 3px 0 0;
+    }
+
+    .field-grid {
+      display: grid;
+      gap: 20px 22px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .field-group {
+      min-width: 0;
+    }
+
+    .field-group--full {
+      grid-column: 1 / -1;
+    }
+
+    .field-group label,
+    .map-label {
+      color: #294563;
+      display: block;
+      font-size: 0.79rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      margin: 0 0 8px;
+    }
+
+    .required-mark {
+      color: var(--registration-danger);
+      margin-left: 2px;
+    }
+
+    .input-shell {
+      align-items: center;
+      background: #fbfcfe;
+      border: 1px solid var(--registration-border);
+      border-radius: 9px;
+      display: flex;
+      min-height: 48px;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+    }
+
+    .input-shell:focus-within {
+      background: #fff;
+      border-color: #5b8dcb;
+      box-shadow: 0 0 0 3px rgba(91, 141, 203, 0.14);
+    }
+
+    .field-icon {
+      align-items: center;
+      color: #7c91a8;
+      display: inline-flex;
+      flex: 0 0 42px;
+      font-size: 0.92rem;
+      justify-content: center;
+    }
+
+    .field-control,
+    .field-control.form-control,
+    .field-control.form-select {
+      background: transparent;
+      border: 0;
+      border-radius: 9px;
+      box-shadow: none;
+      color: var(--registration-ink);
+      font-size: 0.91rem;
+      height: 46px;
+      min-width: 0;
+      outline: 0;
+      padding: 10px 13px 10px 0;
       width: 100%;
     }
 
-    .form-group button:hover {
-      background-color: #1d3a6c;
+    select.field-control {
+      cursor: pointer;
     }
 
-    .form-group .has-error input, .form-group .has-error select {
-      border-color: red;
+    .field-control::placeholder {
+      color: #9aa8b8;
     }
 
-    .form-group .has-error label {
-      color: red;
+    .field-control:focus {
+      border: 0;
+      box-shadow: none;
+      outline: 0;
     }
 
-    /* .container {
-      background-color: #284478;
-      padding: 50px 15px;
-    } */
-
-    .py-5 {
-      padding-top: 50px;
-      padding-bottom: 50px;
+    .field-control[readonly] {
+      color: #4c6176;
+      cursor: not-allowed;
     }
 
-    .login-link {
-      color: #284478;
-      font-weight: bold;
+    .field-file {
+      cursor: pointer;
+      padding: 11px 12px 10px 0;
     }
 
-    .login-link:hover {
-      color: #1d3a6c;
+    .field-file::file-selector-button {
+      background: var(--registration-blue-soft);
+      border: 0;
+      border-radius: 6px;
+      color: var(--registration-blue);
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-right: 10px;
+      padding: 8px 11px;
+    }
+
+    .field-help,
+    .field-validation {
+      color: var(--registration-muted);
+      display: block;
+      font-size: 0.73rem;
+      line-height: 1.45;
+      margin: 6px 0 0;
+    }
+
+    .field-validation {
+      color: var(--registration-danger);
+      display: none;
+    }
+
+    .has-error .input-shell {
+      border-color: #e2a6a2;
+    }
+
+    .location-section {
+      padding-bottom: 14px;
+    }
+
+    .location-intro {
+      background: #f8fbff;
+      border: 1px solid #e2ebf6;
+      border-radius: 10px;
+      color: var(--registration-muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+      margin-bottom: 20px;
+      padding: 12px 14px;
+    }
+
+    .location-layout {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.8fr);
+    }
+
+    .map-panel,
+    .coordinate-panel {
+      min-width: 0;
+    }
+
+    .map-label {
+      align-items: center;
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .map-label i {
+      color: var(--registration-blue);
+    }
+
+    .location-picker {
+      background: #eef3f8;
+      border: 1px solid var(--registration-border);
+      border-radius: 12px;
+      margin-top: 0;
+      overflow: hidden;
+    }
+
+    #location-map {
+      height: clamp(300px, 37vw, 410px);
+      min-height: 300px;
+      width: 100%;
+    }
+
+    #location-picker-status,
+    #location-picker-error {
+      display: block;
+      font-size: 0.76rem;
+      line-height: 1.45;
+      margin: 8px 0 0;
+    }
+
+    #location-picker-status {
+      color: var(--registration-muted);
+    }
+
+    #location-picker-error {
+      color: var(--registration-danger);
+      font-weight: 700;
+    }
+
+    #latitude[readonly] {
+      background: #f7f9fc;
+    }
+
+    .coordinate-panel .field-help {
+      background: #f8fbff;
+      border-left: 3px solid #b9d1ed;
+      padding: 8px 10px;
+    }
+
+    .mapboxgl-ctrl-geocoder {
+      max-width: calc(100% - 24px);
+      width: min(360px, calc(100% - 24px));
+    }
+
+    .mapboxgl-ctrl-top-left {
+      max-width: calc(100% - 20px);
+    }
+
+    .form-actions {
+      align-items: center;
+      border-top: 1px solid var(--registration-border);
+      display: flex;
+      gap: 24px;
+      justify-content: space-between;
+      margin-top: 26px;
+      padding-top: 28px;
+    }
+
+    .privacy-note {
+      color: var(--registration-muted);
+      font-size: 0.78rem;
+      line-height: 1.45;
+      max-width: 390px;
+    }
+
+    .privacy-note i {
+      color: #3d7a58;
+      margin-right: 5px;
     }
 
     #rzp-button {
-      background-color: #284478;
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      font-size: 18px;
-      border-radius: 5px;
-      /* margin-top: 20px; */
+      background: linear-gradient(120deg, var(--registration-blue), #1e5ba2);
+      border: 0;
+      border-radius: 9px;
+      box-shadow: 0 8px 16px rgba(18, 63, 122, 0.2);
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.94rem;
+      font-weight: 800;
+      min-height: 50px;
+      min-width: 205px;
+      padding: 12px 22px;
+      transition: box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
+      width: auto;
+    }
+
+    #rzp-button:hover,
+    #rzp-button:focus-visible {
+      background: linear-gradient(120deg, var(--registration-blue-dark), var(--registration-blue));
+      box-shadow: 0 10px 20px rgba(18, 63, 122, 0.28);
+      transform: translateY(-1px);
+    }
+
+    #rzp-button:focus-visible,
+    .login-link:focus-visible {
+      outline: 3px solid rgba(230, 182, 92, 0.7);
+      outline-offset: 3px;
+    }
+
+    .login-prompt {
+      color: var(--registration-muted);
+      font-size: 0.86rem;
+      margin: 22px 0 0;
+      text-align: center;
+    }
+
+    .login-link {
+      color: var(--registration-blue);
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .login-link:hover {
+      color: var(--registration-blue-dark);
+      text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+      .registration-header__inner {
+        min-height: 74px;
+        padding: 8px 16px;
+      }
+
+      .registration-brand {
+        gap: 9px;
+      }
+
+      .registration-brand__gov {
+        height: 44px;
+        width: 35px;
+      }
+
+      .registration-brand__ssc {
+        height: 36px;
+        padding-left: 9px;
+        width: 45px;
+      }
+
+      .registration-brand__samatwa {
+        height: 44px;
+        max-width: 150px;
+      }
+
+      .registration-header__motto {
+        display: none;
+      }
+
+      .registration-page {
+        padding: 22px 10px 42px;
+      }
+
+      .registration-card {
+        border-radius: 16px;
+      }
+
+      .registration-card__body {
+        padding: 30px 18px 34px;
+      }
+
+      .registration-steps {
+        margin-bottom: 30px;
+      }
+
+      .registration-step {
+        font-size: 0.65rem;
+        line-height: 1.25;
+      }
+
+      .registration-step__number {
+        height: 30px;
+        width: 30px;
+      }
+
+      .registration-steps::before {
+        left: 9%;
+        right: 9%;
+        top: 14px;
+      }
+
+      .field-grid,
+      .location-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .field-group--full {
+        grid-column: auto;
+      }
+
+      .form-actions {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .privacy-note {
+        max-width: none;
+        text-align: center;
+      }
+
+      #rzp-button {
+        width: 100%;
+      }
+
+      #location-map {
+        height: 310px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .registration-brand__samatwa {
+        max-width: 125px;
+      }
+
+      .registration-intro h1 {
+        font-size: 1.65rem;
+      }
+
+      .registration-intro p {
+        font-size: 0.88rem;
+      }
+
+      .registration-step {
+        font-size: 0.58rem;
+      }
+
+      .registration-step__number {
+        height: 27px;
+        width: 27px;
+      }
+    }
+
+    /* Keep the original native controls functional while the surrounding design remains polished. */
+    .registration-card .legacy-field {
+      min-width: 0;
+    }
+
+    .registration-card .legacy-field > .col-md-6,
+    .registration-card .legacy-field > .col-md-12 {
+      flex: none;
+      max-width: none;
+      padding-left: 0;
+      padding-right: 0;
       width: 100%;
+    }
+
+    .registration-card .legacy-field .form-group {
+      margin-bottom: 0;
+    }
+
+    .registration-card .legacy-field label {
+      color: #294563;
+      display: block;
+      font-size: 0.79rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      margin: 0 0 8px;
+    }
+
+    .registration-card .control-frame {
+      align-items: center;
+      background: #fbfcfe;
+      border: 1px solid var(--registration-border);
+      border-radius: 9px;
+      display: flex;
+      min-height: 48px;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+    }
+
+    .registration-card .control-frame:focus-within {
+      background: #fff;
+      border-color: #5b8dcb;
+      box-shadow: 0 0 0 3px rgba(91, 141, 203, 0.14);
+    }
+
+    .registration-card .control-frame > .field-icon {
+      flex: 0 0 42px;
+      pointer-events: none;
+    }
+
+    .registration-card .control-frame > input.form-group,
+    .registration-card .control-frame > input.form-control,
+    .registration-card .control-frame > select {
+      background: transparent;
+      border: 0;
+      border-radius: 9px;
+      box-shadow: none;
+      color: var(--registration-ink);
+      font-size: 0.91rem;
+      height: 46px;
+      margin: 0;
+      min-width: 0;
+      outline: 0;
+      padding: 10px 13px 10px 0;
+      width: 100%;
+    }
+
+    .registration-card .control-frame > input.form-group:focus,
+    .registration-card .control-frame > input.form-control:focus,
+    .registration-card .control-frame > select:focus {
+      border: 0;
+      box-shadow: none;
+      outline: 0;
+    }
+
+    .registration-card .control-frame > select {
+      cursor: pointer;
+      padding-right: 10px;
+    }
+
+    .registration-card .control-frame > input[type="file"].form-group {
+      cursor: pointer;
+      padding: 7px 10px 7px 0;
+    }
+
+    .registration-card .control-frame > input[type="file"].form-group::file-selector-button {
+      background: var(--registration-blue-soft);
+      border: 0;
+      border-radius: 6px;
+      color: var(--registration-blue);
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-right: 10px;
+      padding: 8px 11px;
+    }
+
+    .registration-card .legacy-field .field-help,
+    .registration-card .legacy-field > span.form-group {
+      color: var(--registration-muted);
+      display: block;
+      font-size: 0.73rem !important;
+      line-height: 1.45;
+      margin: 6px 0 0;
+    }
+
+    .registration-card .legacy-field .has-error .control-frame {
+      border-color: #e2a6a2;
+    }
+
+    .registration-card #latitude[readonly] {
+      background: #f7f9fc;
+      cursor: not-allowed;
+    }
+
+    .registration-card #rzp-button::after {
+      content: " →";
+    }
+
+
+    .registration-card .form-section {
+      background: #fbfcfe;
+      border: 1px solid #e2eaf3;
+      border-radius: 14px;
+      margin-top: 22px;
+      padding: 26px 24px 24px;
+    }
+
+    .registration-card .form-section:first-of-type {
+      margin-top: 0;
+    }
+
+    .registration-card .form-section.location-section {
+      background: #f7fbff;
+    }
+
+    @media (max-width: 768px) {
+      .registration-card .form-section {
+        border-radius: 12px;
+        padding: 22px 15px 20px;
+      }
+    }
+
+
+    [data-wizard-step][hidden] {
+      display: none !important;
+    }
+
+    .registration-step__button {
+      align-items: center;
+      background: transparent;
+      border: 0;
+      color: inherit;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      font: inherit;
+      gap: 8px;
+      padding: 0;
+      width: 100%;
+    }
+
+    .registration-step__button:focus-visible {
+      border-radius: 8px;
+      outline: 3px solid rgba(230, 182, 92, 0.72);
+      outline-offset: 4px;
+    }
+
+    .registration-step.is-complete {
+      color: var(--registration-blue);
+    }
+
+    .registration-step.is-complete .registration-step__number {
+      background: var(--registration-blue-soft);
+      border-color: #9dbce0;
+      color: var(--registration-blue);
+    }
+
+    .registration-step.is-locked {
+      color: #8998a9;
+    }
+
+    .registration-step.is-locked .registration-step__button {
       cursor: pointer;
     }
 
-    #rzp-button:hover {
-      background-color: #041678;
+    .wizard-navigation {
+      align-items: center;
+      border-top: 1px solid #e2eaf3;
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      margin-top: 26px;
+      padding-top: 20px;
     }
 
-    .labal-star{
-      color: red;
+    .wizard-validation-message {
+      background: #fff7ed;
+      border: 1px solid #f2c58a;
+      border-radius: 8px;
+      color: #8a4b08;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      margin-top: 20px;
+      padding: 10px 12px;
     }
-  </style>
 
-<style>
-	/* Style the overlay with black color */
-	.overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		background-color: rgba(0, 0, 0, 0.6); /* Full black overlay */
-		z-index: 999;
-		display: none; /* Initially hidden */
-		animation: fadeIn 0.3s ease-out;
-	}
+    .wizard-button {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.84rem;
+      font-weight: 800;
+      min-height: 44px;
+      padding: 10px 18px;
+      transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
 
-	/* Popup style */
-	.popup {
-		display: block;
-		position: fixed;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		background-color: #fff;
-		padding: 25px 40px;
-		border-radius: 12px;
-		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-		text-align: center;
-		max-width: 500px;
-		width: 100%;
-		z-index: 1000;
-		opacity: 0;
-		animation: popupAnimation 0.5s forwards;
-	}
+    .wizard-button:focus-visible {
+      outline: 3px solid rgba(230, 182, 92, 0.7);
+      outline-offset: 3px;
+    }
 
-	/* Style the logo image */
-	.popup img {
-		width: 100px;
-		margin-bottom: 20px;
-	}
+    .wizard-button--primary {
+      background: var(--registration-blue);
+      box-shadow: 0 7px 14px rgba(18, 63, 122, 0.16);
+      color: #fff;
+    }
 
-	/* Button style */
-	.popup button {
-		padding: 12px 25px;
-		background-color: #244176;
-		color: white;
-		border: none;
-		border-radius: 5px;
-		font-size: 16px;
-		cursor: pointer;
-		transition: background-color 0.3s ease;
-	}
+    .wizard-button--primary:hover,
+    .wizard-button--primary:focus-visible {
+      background: var(--registration-blue-dark);
+      box-shadow: 0 9px 18px rgba(18, 63, 122, 0.24);
+      transform: translateY(-1px);
+    }
 
-	.popup button:hover {
-		background-color: #1e407d;
-	}
+    .wizard-button--secondary {
+      background: #fff;
+      border-color: #cbd8e6;
+      color: var(--registration-blue);
+    }
 
-	/* Animation for the popup */
-	@keyframes popupAnimation {
-		0% { opacity: 0; transform: translate(-50%, -60%); }
-		100% { opacity: 1; transform: translate(-50%, -50%); }
-	}
+    .wizard-button--secondary:hover,
+    .wizard-button--secondary:focus-visible {
+      background: var(--registration-blue-soft);
+      border-color: #9dbce0;
+    }
 
-	/* Animation for the overlay */
-	@keyframes fadeIn {
-		0% { opacity: 0; }
-		100% { opacity: 1; }
-	}
+    .wizard-button--secondary:disabled {
+      background: #f4f6f8;
+      border-color: #e2e7ed;
+      color: #a1acb8;
+      cursor: not-allowed;
+      opacity: 0.85;
+    }
+
+    .wizard-review-section {
+      background: #f8fbff;
+    }
+
+    .review-summary {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .review-summary__group {
+      background: #fff;
+      border: 1px solid #e0e9f3;
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .review-summary__group--wide {
+      grid-column: 1 / -1;
+    }
+
+    .review-summary__group h3 {
+      color: var(--registration-blue-dark);
+      font-size: 0.86rem;
+      font-weight: 800;
+      margin: 0 0 12px;
+    }
+
+    .review-summary__list {
+      display: grid;
+      gap: 10px 14px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin: 0;
+    }
+
+    .review-summary__item {
+      min-width: 0;
+    }
+
+    .review-summary__item--wide {
+      grid-column: 1 / -1;
+    }
+
+    .review-summary__item dt {
+      color: var(--registration-muted);
+      font-size: 0.7rem;
+      font-weight: 700;
+      margin: 0 0 3px;
+    }
+
+    .review-summary__item dd {
+      color: var(--registration-ink);
+      font-size: 0.83rem;
+      line-height: 1.4;
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .review-submit-controls {
+      align-items: center;
+      display: flex;
+      gap: 12px;
+    }
+
+    .review-submit-controls #rzp-button {
+      min-width: 205px;
+    }
+
+    @media (max-width: 768px) {
+      .wizard-navigation {
+        align-items: stretch;
+      }
+
+      .wizard-navigation .wizard-button {
+        flex: 1;
+      }
+
+      .review-summary {
+        grid-template-columns: 1fr;
+      }
+
+      .review-summary__group--wide {
+        grid-column: auto;
+      }
+
+      .review-summary__list {
+        grid-template-columns: 1fr;
+      }
+
+      .review-summary__item--wide {
+        grid-column: auto;
+      }
+
+      .form-actions {
+        align-items: stretch;
+      }
+
+      .review-submit-controls {
+        align-items: stretch;
+        flex-direction: column-reverse;
+      }
+
+      .review-submit-controls .wizard-button,
+      .review-submit-controls #rzp-button {
+        width: 100%;
+      }
+    }
+
 </style>
 
-  <div style="background-color: #284478">
+  <header class="registration-header">
+    <div class="registration-header__inner">
+      <a class="registration-brand" href="{% url 'web:index' %}" aria-label="Samatwa Service Centre home">
+        <img class="registration-brand__gov" src="{% static 'web/assets2/images/sscert[1].png' %}" alt="Government of India">
+        <img class="registration-brand__ssc" src="{% static 'web/assets2/images/logoSSC-WHITE-cut.png' %}" alt="SSC">
+        <img class="registration-brand__samatwa" src="{% static 'web/assets2/images/SAMATWA_SERVICE_CENTRE__SSC___2.png' %}" alt="Samatwa Service Centre">
+      </a>
+      <div class="registration-header__motto">SERVICE TO EVERY CITIZEN</div>
+    </div>
+  </header>
 
-
-<div class="container">
-    <div class="py-5"></div>
-
-    <div class="form-wrap"> 
-
-      {% if error %}
-            <p class="error" style="color: red;">{{ error }}</p>
+  <main class="registration-page">
+    <div class="registration-card">
+      <div class="registration-card__body">
+        {% if error %}
+          <div class="server-error error" role="alert">
+            <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+            <span>{{ error }}</span>
+          </div>
         {% endif %}
-        <h4 id="title" class="text-center py-3">Register New User</h4>
+
+        <div class="registration-intro">
+          <div class="registration-eyebrow">SSC SERVICE CENTRE REGISTRATION</div>
+          <h1>Register New User</h1>
+          <p>Create your account to access SSC services through Common Service Centers.</p>
+        </div>
+
+        <ol class="registration-steps" aria-label="Registration progress">
+          <li class="registration-step is-active" data-step-state="active">
+            <button type="button" class="registration-step__button" data-wizard-step="1" aria-current="step">
+              <span class="registration-step__number">1</span>
+              <span>Personal Details</span>
+            </button>
+          </li>
+          <li class="registration-step is-locked" data-step-state="locked">
+            <button type="button" class="registration-step__button" data-wizard-step="2" aria-disabled="true">
+              <span class="registration-step__number">2</span>
+              <span>Contact &amp; Address</span>
+            </button>
+          </li>
+          <li class="registration-step is-locked" data-step-state="locked">
+            <button type="button" class="registration-step__button" data-wizard-step="3" aria-disabled="true">
+              <span class="registration-step__number">3</span>
+              <span>Location</span>
+            </button>
+          </li>
+          <li class="registration-step is-locked" data-step-state="locked">
+            <button type="button" class="registration-step__button" data-wizard-step="4" aria-disabled="true">
+              <span class="registration-step__number">4</span>
+              <span>Documents</span>
+            </button>
+          </li>
+          <li class="registration-step is-locked" data-step-state="locked">
+            <button type="button" class="registration-step__button" data-wizard-step="5" aria-disabled="true">
+              <span class="registration-step__number">5</span>
+              <span>Review &amp; Submit</span>
+            </button>
+          </li>
+        </ol>
+
         <form method="post" enctype="multipart/form-data" action="{% url 'exam:temporary_user' %}">
           {% csrf_token %}
-          <!-- First Row -->
-          <div class="row mb-3">
-              <div class="col-md-6 form-group{% if form.name.errors %} has-error{% endif %}">
-                <label for="">Name (As per govt. ID Proof) <span class="labal-star">*</span></label>
-                  <input type="text" id="name" class="form-group" name="name" placeholder="Name" required>
+
+          <section class="form-section" data-wizard-step="1" aria-labelledby="personal-details-heading">
+            <div class="section-heading">
+              <span class="section-heading__icon" aria-hidden="true"><i class="fa fa-user"></i></span>
+              <div>
+                <h2 id="personal-details-heading">Personal Details</h2>
+                <p>Enter your identity details exactly as shown on your government ID.</p>
               </div>
-
-              <div class="col-md-6 form-group{% if form.photo.errors %} has-error{% endif %}">
-                <label for="">Upload Photo <span class="labal-star">*</span></label>
-                  <input type="file" id="photo" class="form-group" accept="image/*" name="photo" required>
-                  <span class="form-group" style="font-size: 12px;">upload the size below 80kb</span>
-              </div>
-          </div>
-          <!-- Second Row -->
-          <div class="row mb-3">
-              <div class="col-md-6 form-group">
-                <label for="">Email <span class="labal-star">*</span></label>
-                  <input type="email" id="email" class="form-group" name="email" placeholder="Email Address" required>
-              </div>
-
-              <div class="col-md-6 form-group{% if form.mobile.errors %} has-error{% endif %}">
-                <label for="">Mobile <span class="labal-star">*</span></label>
-                  <input type="text" id="mobile" minlength="10" maxlength="10" oninput="validateMobileNumber(event)" class="form-group" name="mobile" placeholder="Mobile Number" required>
-                  <span id="validate-error-mobile" style="display:none; color:red; font-size: 12px;">Mobile Number must be exactly 10 digits.</span>
-              </div>
-          </div>
-        
-          <!-- Third Row -->
-          <div class="row mb-3">
-              <div class="col-md-6 form-group{% if form.another_name.errors %} has-error{% endif %}">
-                <label for="">Father's/Mother's/Spouse's Name <span class="labal-star">*</span></label>
-                  <input type="text" id="another_name" class="form-group" name="another_name" placeholder="Father's/Mother's/Spouse's Name" required>
-              </div>
-
-              <div class="col-md-6 form-group">
-                <label for="state">State <span class="labal-star">*</span></label>
-                <select name="state" id="state" required>
-                  <option value="">Select State</option>
-                  {% for state in states %}
-                      <option value="{{ state.state_id }}">
-                          {{ state.name }}
-                      </option>
-                  {% endfor %}
-              </select>
-
-            </div>
-          </div>
-          <!-- Fourth Row -->
-          <div class="row mb-3">
-            <div class="col-md-6 form-group">
-              <label for="district">District <span class="labal-star">*</span></label>
-              <select name="district" id="district" required>
-                <option value="">Select District</option>
-                {% for district in districts %}
-                  <option value="{{ district.district_id }}">
-                    {{ district.district_name }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
-            
-            <input type="hidden" id="district_selected" name="district_selected">
-
-
-            <div class="col-md-6 form-group">
-              <label for="local_body"> Local Body <span class="labal-star">*</span></label>
-                <select id="local_body" name="local_body" required>
-                  <option value="Panchayath">Panchayath</option>
-                  <option value="Corporation">Corporation</option>
-                    <option value="Muncipality">Muncipality</option>
-                </select>
             </div>
 
-            <div class="col-md-6 form-group">
-              <label for="panchayat">Panchayat/Municipality/Corporations<span class="labal-star">*</span></label>
-              <select id="panchayat" name="panchayat" required>
-                <option value="">Select</option>
-                {% for panchayat in panchayats %}
-                  <option value="{{ panchayat.panchayat_id }}">
-                    {{ panchayat.name }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
+            <div class="field-grid">
+              <div class="legacy-field">
+                <div class="col-md-6 form-group{% if form.name.errors %} has-error{% endif %}">
+                  <label for="">Name (As per govt. ID Proof) <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-user"></i></span>
+                    <input type="text" id="name" class="form-group" name="name" placeholder="Name" required>
+                  </div>
+                </div>
+              </div>
 
-            <div class="col-md-6 form-group{% if form.ward_number.errors %} has-error{% endif %}">
-              <label for="ward_number">Ward Number <span class="labal-star">*</span></label>
-              <input type="text" class="form-group" id="ward_number" name="ward_number" placeholder="Ward Number" required>
-          </div>
+              <div class="legacy-field">
+                <div class="col-md-6 form-group{% if form.another_name.errors %} has-error{% endif %}">
+                  <label for="">Father's/Mother's/Spouse's Name <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-users"></i></span>
+                    <input type="text" id="another_name" class="form-group" name="another_name" placeholder="Father's/Mother's/Spouse's Name" required>
+                  </div>
+                </div>
+              </div>
 
-              <div class="col-md-6 form-group{% if form.gender.errors %} has-error{% endif %}">
-                <label for="">Gender (As per govt. ID Proof) <span class="labal-star">*</span></label>
-                  <select id="gender" name="gender" required>
-                    <option value="">Select Gender</option>
+              <div class="legacy-field">
+                <div class="col-md-6 form-group{% if form.gender.errors %} has-error{% endif %}">
+                  <label for="">Gender (As per govt. ID Proof) <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-venus-mars"></i></span>
+                    <select id="gender" name="gender" required>
+                      <option value="">Select Gender</option>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
                       <option value="transgender">Transgender</option>
-                  </select>
+                    </select>
+                  </div>
+                </div>
               </div>
-              
-              <div class="col-md-6 form-group{% if form.aadhaar_number.errors %} has-error{% endif %}">
-                <label for="">Aadhar Number<span class="labal-star">*</span></label>
-                  <input type="text" id="aadhaar_number" minlength="12" maxlength="12" oninput="validateAadharNumber(event)" class="form-group" name="aadhaar_number" placeholder="Aadhar Number" required>
+
+              <div class="legacy-field">
+                <div class="col-md-6 form-group{% if form.date_of_birth.errors %} has-error{% endif %}">
+                  <label for="">D.O.B (As per govt. ID Proof) <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-calendar"></i></span>
+                    <input type="date" id="date_of_birth" class="form-group" name="date_of_birth" required>
+                  </div>
+                </div>
+              </div>
+
+              <div class="legacy-field">
+                <div class="col-md-6 form-group{% if form.aadhaar_number.errors %} has-error{% endif %}">
+                  <label for="">Aadhar Number<span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-id-card"></i></span>
+                    <input type="text" id="aadhaar_number" minlength="12" maxlength="12" oninput="validateAadharNumber(event)" class="form-group" name="aadhaar_number" placeholder="Aadhar Number" required>
+                  </div>
                   <span id="validate-error-aadhaar" style="display:none; color:red; font-size: 12px;">Aadhaar Number must be exactly 12 digits.</span>
-              </div>  
-          </div>
-
-          <!-- Fifth Row -->
-          <div class="row mb-3">
-            <div class="col-md-6 form-group{% if form.date_of_birth.errors %} has-error{% endif %}">
-              <label for="">D.O.B (As per govt. ID Proof) <span class="labal-star">*</span></label>
-                <input type="date" id="date_of_birth" class="form-group" name="date_of_birth" required>
-            </div>
-
-            <div class="col-md-6 form-group{% if form.photo.errors %} has-error{% endif %}">
-              <label for="">Cancelled Cheque Leaf / Pass Book Front Page <span class="labal-star">*</span></label>
-                <input type="file" id="cheque_passbook" class="form-group" name="cheque_passbook" accept="image/*" required>
-                <span class="form-group" style="font-size: 12px;">upload the size below 80kb</span>
-            </div> 
-          </div>
-
-          <!-- sixth Row -->
-          <div class="row mb-3">
-            <div class="col-md-12 form-group">
-              <label for="">Enter Your Address <span class="labal-star">*</span></label>
-                  <input type="text" class="form-group" id="address" name="address" placeholder="Address" required>
-            </div>
-
-            <div class="col-md-12 form-group">
-              <label for="latitude">Latitude and longitude<span class="labal-star">*</span></label>
-              <input type="text" class="form-control" id="latitude" placeholder="Enter Latitude and Longitude (comma seperated)" name="latitude" required>
-              <span class="form-group" style="font-size: 12px;">We recommend to copy the values from google maps and paste here</span>
-            </div>
-                <div class="col-12 mt-2">
-                  <a href="https://www.google.com/maps/" id="googleMapBtn" class="btn btn-sm btn-success" target="_blank" style="font-size: 11px;">Try with Google Map</a>
+                </div>
               </div>
+            </div>
+
+          <div class="wizard-validation-message" data-wizard-message="1" role="alert" aria-live="polite" hidden></div>
+          <div class="wizard-navigation">
+            <button type="button" class="wizard-button wizard-button--secondary" data-wizard-back="1" disabled>Back</button>
+            <button type="button" class="wizard-button wizard-button--primary" data-wizard-next="1">Save &amp; Continue</button>
           </div>
+          </section>
 
-          <button  id="rzp-button" type="submit" class="buttonF">Register & Pay</button><br>
-            <!-- <a href="https://rzp.io/rzp/Sh76yug"> <button type="submit" class="buttonF">Register & Pay link</button> </a> -->
+          <section class="form-section" data-wizard-step="2" aria-labelledby="contact-details-heading">
+            <div class="section-heading">
+              <span class="section-heading__icon" aria-hidden="true"><i class="fa fa-address-card"></i></span>
+              <div>
+                <h2 id="contact-details-heading">Contact Details</h2>
+                <p>Use an active email address and mobile number for registration updates.</p>
+              </div>
+            </div>
 
-      </form>
-      <p>Already registered? <a href="{% url 'exam:entrepreneur_userlogin' %}">Login </a>to your account.</p>
-    </div>  
-<div class="py-5"></div>
-</div>
-</div>
+            <div class="field-grid">
+              <div class="legacy-field">
+                <div class="col-md-6 form-group">
+                  <label for="">Email <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-envelope"></i></span>
+                    <input type="email" id="email" class="form-group" name="email" placeholder="Email Address" required>
+                  </div>
+                </div>
+              </div>
+
+              <div class="legacy-field">
+                <div class="col-md-6 form-group{% if form.mobile.errors %} has-error{% endif %}">
+                  <label for="">Mobile <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-phone"></i></span>
+                    <input type="text" id="mobile" minlength="10" maxlength="10" oninput="validateMobileNumber(event)" class="form-group" name="mobile" placeholder="Mobile Number" required>
+                  </div>
+                  <span id="validate-error-mobile" style="display:none; color:red; font-size: 12px;">Mobile Number must be exactly 10 digits.</span>
+                </div>
+              </div>
+            </div>
+
+          </section>
+
+          <section class="form-section" data-wizard-step="2" aria-labelledby="address-details-heading">
+            <div class="section-heading">
+              <span class="section-heading__icon" aria-hidden="true"><i class="fa fa-map-marker"></i></span>
+              <div>
+                <h2 id="address-details-heading">Address &amp; Local Body Details</h2>
+                <p>Select your administrative area first, then choose the matching local body and ward.</p>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <div class="legacy-field">
+                <div class="col-md-6 form-group">
+                  <label for="state">State <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-map"></i></span>
+                    <select name="state" id="state" required>
+                      <option value="">Select State</option>
+                      {% for state in states %}
+                        <option value="{{ state.state_id }}">{{ state.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="legacy-field">
+                <div class="col-md-6 form-group">
+                  <label for="district">District <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-map-marker"></i></span>
+                    <select name="district" id="district" required>
+                      <option value="">Select District</option>
+                      {% for district in districts %}
+                        <option value="{{ district.district_id }}">{{ district.district_name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <input type="hidden" id="district_selected" name="district_selected">
+
+              <div class="legacy-field">
+                <div class="col-md-6 form-group">
+                  <label for="local_body"> Local Body <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-building"></i></span>
+                    <select id="local_body" name="local_body" required>
+                      <option value="Panchayath">Panchayath</option>
+                      <option value="Corporation">Corporation</option>
+                      <option value="Muncipality">Muncipality</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="legacy-field">
+                <div class="col-md-6 form-group">
+                  <label for="panchayat">Panchayat/Municipality/Corporations<span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-home"></i></span>
+                    <select id="panchayat" name="panchayat" required>
+                      <option value="">Select</option>
+                      {% for panchayat in panchayats %}
+                        <option value="{{ panchayat.panchayat_id }}">{{ panchayat.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="legacy-field">
+                <div class="col-md-6 form-group{% if form.ward_number.errors %} has-error{% endif %}">
+                  <label for="ward_number">Ward Number <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-hashtag"></i></span>
+                    <input type="text" class="form-group" id="ward_number" name="ward_number" placeholder="Ward Number" required>
+                  </div>
+                </div>
+              </div>
+
+              <div class="legacy-field field-group--full">
+                <div class="col-md-12 form-group">
+                  <label for="">Full Address <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-home"></i></span>
+                    <input type="text" class="form-group" id="address" name="address" placeholder="Address" required>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          <div class="wizard-validation-message" data-wizard-message="2" role="alert" aria-live="polite" hidden></div>
+          <div class="wizard-navigation">
+            <button type="button" class="wizard-button wizard-button--secondary" data-wizard-back="2">Back</button>
+            <button type="button" class="wizard-button wizard-button--primary" data-wizard-next="2">Save &amp; Continue</button>
+          </div>
+          </section>
+
+          <section class="form-section location-section" data-wizard-step="3" aria-labelledby="location-verification-heading">
+            <div class="section-heading">
+              <span class="section-heading__icon" aria-hidden="true"><i class="fa fa-crosshairs"></i></span>
+              <div>
+                <h2 id="location-verification-heading">Location</h2>
+                <p>Confirm the service location that matches your address before submitting the registration.</p>
+              </div>
+            </div>
+
+            <div class="location-intro">
+              <i class="fa fa-info-circle" aria-hidden="true"></i>
+              Search for your place, click the map, or drag the marker to select your location. Latitude and longitude are filled automatically.
+            </div>
+
+            <div class="location-layout">
+              <div class="map-panel">
+                <div class="map-label"><i class="fa fa-map-marker" aria-hidden="true"></i> Select Your Location</div>
+                <div class="location-picker">
+                  <div id="location-map" aria-label="Interactive location picker map"></div>
+                </div>
+                <span id="location-picker-status" aria-live="polite">Loading the location picker...</span>
+                <span id="location-picker-error" role="alert" hidden></span>
+              </div>
+
+              <div class="coordinate-panel">
+                <div class="legacy-field">
+                  <div class="col-md-12 form-group">
+                    <label for="latitude">Latitude and longitude<span class="labal-star">*</span></label>
+                    <div class="control-frame">
+                      <span class="field-icon" aria-hidden="true"><i class="fa fa-location-arrow"></i></span>
+                      <input type="text" class="form-control" id="latitude" placeholder="Select a location on the map" name="latitude" required readonly aria-describedby="location-picker-status location-picker-error">
+                    </div>
+                    <span class="field-help">This field updates automatically when you click the map, drag the marker, or choose a search result.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          <div class="wizard-validation-message" data-wizard-message="3" role="alert" aria-live="polite" hidden></div>
+          <div class="wizard-navigation">
+            <button type="button" class="wizard-button wizard-button--secondary" data-wizard-back="3">Back</button>
+            <button type="button" class="wizard-button wizard-button--primary" data-wizard-next="3">Save &amp; Continue</button>
+          </div>
+          </section>
+
+          <section class="form-section" data-wizard-step="4" aria-labelledby="required-documents-heading">
+            <div class="section-heading">
+              <span class="section-heading__icon" aria-hidden="true"><i class="fa fa-folder-open"></i></span>
+              <div>
+                <h2 id="required-documents-heading">Documents</h2>
+                <p>Upload clear images of both documents. Each file should be below 80kb.</p>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <div class="legacy-field">
+                <div class="col-md-6 form-group{% if form.photo.errors %} has-error{% endif %}">
+                  <label for="">Upload Photo <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-camera"></i></span>
+                    <input type="file" id="photo" class="form-group" accept="image/*" name="photo" required>
+                  </div>
+                  <span class="form-group" style="font-size: 12px;">upload the size below 80kb</span>
+                </div>
+              </div>
+
+              <div class="legacy-field">
+                <div class="col-md-6 form-group{% if form.photo.errors %} has-error{% endif %}">
+                  <label for="">Cancelled Cheque Leaf / Pass Book Front Page <span class="labal-star">*</span></label>
+                  <div class="control-frame">
+                    <span class="field-icon" aria-hidden="true"><i class="fa fa-file-image-o"></i></span>
+                    <input type="file" id="cheque_passbook" class="form-group" name="cheque_passbook" accept="image/*" required>
+                  </div>
+                  <span class="form-group" style="font-size: 12px;">upload the size below 80kb</span>
+                </div>
+              </div>
+            </div>
+
+          <div class="wizard-validation-message" data-wizard-message="4" role="alert" aria-live="polite" hidden></div>
+          <div class="wizard-navigation">
+            <button type="button" class="wizard-button wizard-button--secondary" data-wizard-back="4">Back</button>
+            <button type="button" class="wizard-button wizard-button--primary" data-wizard-next="4">Save &amp; Continue</button>
+          </div>
+          </section>
+
+          <section class="form-section wizard-review-section" data-wizard-step="5" aria-labelledby="review-submit-heading">
+            <div class="section-heading">
+              <span class="section-heading__icon" aria-hidden="true"><i class="fa fa-check-circle"></i></span>
+              <div>
+                <h2 id="review-submit-heading">Review &amp; Submit</h2>
+                <p>Review your details before continuing to the secure registration payment.</p>
+              </div>
+            </div>
+            <div id="review-summary" class="review-summary" aria-live="polite"></div>
+
+          <div class="form-actions">
+            <p class="privacy-note">
+              <i class="fa fa-lock" aria-hidden="true"></i>
+              Your information is securely saved and used only for SSC services.
+            </p>
+            <div class="review-submit-controls">
+              <button type="button" class="wizard-button wizard-button--secondary" data-wizard-back="5">Back</button>
+              <button id="rzp-button" type="submit" class="buttonF">Register & Pay</button><br>
+            </div>
+          </div>
+        </section>
+        </form>
+
+        <p class="login-prompt">Already registered? <a class="login-link" href="{% url 'exam:entrepreneur_userlogin' %}">Login</a> to your account.</p>
+      </div>
+    </div>
+  </main>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{% static 'web/dashboard/assets/js/checkout.js' %}"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.3/mapbox-gl-geocoder.min.js"></script>
+{{ mapbox_access_token|json_script:"mapbox-access-token" }}
+<script src="{% static 'web/js/exam-register-location.js' %}"></script>
 
 <script>
-
-    window.onload = function () {
-        const isSmallScreen = window.matchMedia("(max-width: 768px)").matches;
-        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-
-        if (isSmallScreen && isTouchDevice) {
-            Swal.fire({
-                title: "WARNING",
-                text: "This site is not optimized for mobile devices. We recommend using a laptop or desktop for the best experience.",
-                icon: "warning",
-                confirmButtonText: "OK"
-              }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = "/";
-                }
-            });
-        }
-    };
-
-document.getElementById('state').addEventListener('change', function() {
-    var stateId = this.value;  // Get the selected state ID
+  document.getElementById('state').addEventListener('change', function() {
+    var stateId = this.value;
 
     if (stateId) {
-        fetch(`/exam/register/get_districts/?state_id=${stateId}`)
+        fetch("{% url 'exam:get_districts' %}?state_id=" + stateId)
         .then(response => response.json())
         .then(data => {
             var districtSelect = document.getElementById('district');
-            districtSelect.innerHTML = '<option value="">Select District</option>'; // Reset dropdown
-            
+            districtSelect.innerHTML = '<option value="">Select District</option>';
+
             if (data.length > 0) {
                 data.forEach(function(district) {
                     var option = document.createElement('option');
-                    option.value = district.id;  // Ensure you're using correct field name "id"
+                    option.value = district.id;
                     option.textContent = district.district_name;
                     districtSelect.appendChild(option);
-                    console.log('helloooo alansha');
                 });
             }
         })
@@ -435,17 +1435,16 @@ document.getElementById('state').addEventListener('change', function() {
 });
 </script>
 
-
 <script>
 document.getElementById('district').addEventListener('change', function() {
     var districtId = this.value;
-    var localBody = document.getElementById('local_body').value;  // Get the selected local body value
+    var localBody = document.getElementById('local_body').value;
     var hiddenDistrictInput = document.getElementById('district_selected');
 
     if (districtId) {
         hiddenDistrictInput.value = districtId;
 
-        fetch(`/exam/register/get_panchayats/?district_id=${districtId}&local_body=${localBody}`)
+        fetch("{% url 'exam:get_panchayats' %}?district_id=" + districtId + "&local_body=" + localBody)
             .then(response => response.json())
             .then(data => {
                 var panchayatSelect = document.getElementById('panchayat');
@@ -461,17 +1460,16 @@ document.getElementById('district').addEventListener('change', function() {
             .catch(error => console.error('Error fetching Panchayats:', error));
     }
 });
-
 
 document.getElementById('local_body').addEventListener('change', function() {
-    var districtId = document.getElementById('district').value;  // Get the selected district value
-    var localBody = this.value;  // Get the selected local body value
+    var districtId = document.getElementById('district').value;
+    var localBody = this.value;
     var hiddenDistrictInput = document.getElementById('district_selected');
 
-    if (districtId && localBody) {  // Ensure both district and local body are selected
+    if (districtId && localBody) {
         hiddenDistrictInput.value = districtId;
 
-        fetch(`/exam/register/get_panchayats/?district_id=${districtId}&local_body=${localBody}`)
+        fetch("{% url 'exam:get_panchayats' %}?district_id=" + districtId + "&local_body=" + localBody)
             .then(response => response.json())
             .then(data => {
                 var panchayatSelect = document.getElementById('panchayat');
@@ -488,14 +1486,13 @@ document.getElementById('local_body').addEventListener('change', function() {
     }
 });
 
-
-  setTimeout(function() {
+setTimeout(function() {
     const errorElement = document.querySelector('.error');
     if (errorElement) {
         errorElement.style.opacity = '0';
         setTimeout(function() {
             errorElement.style.display = 'none';
-        }, 500); // Wait for the fade-out transition to complete (0.5s)
+        }, 500);
     }
 }, 5000);
 
@@ -503,7 +1500,7 @@ function validateMobileNumber(event) {
     const input = event.target;
     const errorElement = document.getElementById('validate-error-mobile');
 
-    input.value = input.value.replace(/\D/g, ''); // Remove non-numeric characters
+    input.value = input.value.replace(/\D/g, '');
     if (input.value.length === 10) {
         errorElement.style.display = 'none';
     } else {
@@ -515,7 +1512,7 @@ function validateAadharNumber(event) {
     const input = event.target;
     const errorElement = document.getElementById('validate-error-aadhaar');
 
-    input.value = input.value.replace(/\D/g, ''); // Remove non-numeric characters
+    input.value = input.value.replace(/\D/g, '');
     if (input.value.length === 12) {
         errorElement.style.display = 'none';
     } else {
@@ -525,7 +1522,353 @@ function validateAadharNumber(event) {
 </script>
 
 
+<script>
+(function () {
+  "use strict";
 
-<!-- JavaScript to populate districts based on the selected state -->
+  var form = document.querySelector('form[action*="temporary_user"]');
+  if (!form) {
+    return;
+  }
+
+  var panels = Array.prototype.slice.call(form.querySelectorAll("section[data-wizard-step]"));
+  var stepItems = Array.prototype.slice.call(document.querySelectorAll(".registration-step"));
+  var stepButtons = Array.prototype.slice.call(document.querySelectorAll(".registration-step__button"));
+  var reviewSummary = document.getElementById("review-summary");
+  var currentStep = 1;
+  var completedSteps = {};
+
+  function panelStep(panel) {
+    return Number(panel.getAttribute("data-wizard-step"));
+  }
+
+  function controlsForStep(step) {
+    var controls = [];
+    panels.forEach(function (panel) {
+      if (panelStep(panel) !== step) {
+        return;
+      }
+      Array.prototype.forEach.call(panel.querySelectorAll("input, select, textarea"), function (control) {
+        if (!control.disabled && control.type !== "hidden") {
+          controls.push(control);
+        }
+      });
+    });
+    return controls;
+  }
+
+  function messageForStep(step) {
+    return document.querySelector('[data-wizard-message="' + step + '"]');
+  }
+
+  function setStepMessage(step, message) {
+    var messageElement = messageForStep(step);
+    if (!messageElement) {
+      return;
+    }
+    messageElement.textContent = message || "";
+    messageElement.hidden = !message;
+  }
+
+  function invalidMessage(control, step) {
+    if (control && control.id === "latitude") {
+      return "Please select your location on the map before continuing.";
+    }
+    if (control && control.type === "file") {
+      return "Please select the required document before continuing.";
+    }
+    if (step === 1) {
+      return "Please complete all personal details before continuing.";
+    }
+    if (step === 2) {
+      return "Please complete your contact and address details before continuing.";
+    }
+    if (step === 3) {
+      return "Please select your location on the map before continuing.";
+    }
+    if (step === 4) {
+      return "Please select both required documents before continuing.";
+    }
+    return "Please complete the highlighted field before continuing.";
+  }
+
+  function findInvalidControl(step) {
+    var controls = controlsForStep(step);
+    for (var index = 0; index < controls.length; index += 1) {
+      var control = controls[index];
+      if (control.id === "latitude" && !String(control.value || "").trim()) {
+        control.setCustomValidity("Please select your location on the map before continuing.");
+        return control;
+      }
+      if (typeof control.checkValidity === "function" && !control.checkValidity()) {
+        return control;
+      }
+    }
+    return null;
+  }
+
+  function focusControl(control) {
+    if (!control) {
+      return;
+    }
+    window.setTimeout(function () {
+      try {
+        control.focus({ preventScroll: true });
+      } catch (error) {
+        control.focus();
+      }
+    }, 0);
+  }
+
+  function updateStepIndicator() {
+    stepItems.forEach(function (item, index) {
+      var step = index + 1;
+      var button = item.querySelector(".registration-step__button");
+      var isActive = step === currentStep;
+      var isComplete = Boolean(completedSteps[step]) && !isActive;
+      var isLocked = !isActive && !isComplete;
+
+      item.classList.toggle("is-active", isActive);
+      item.classList.toggle("is-complete", isComplete);
+      item.classList.toggle("is-locked", isLocked);
+      item.setAttribute("data-step-state", isActive ? "active" : (isComplete ? "complete" : "locked"));
+
+      if (button) {
+        if (isActive) {
+          button.setAttribute("aria-current", "step");
+        } else {
+          button.removeAttribute("aria-current");
+        }
+        button.setAttribute("aria-disabled", isLocked ? "true" : "false");
+      }
+    });
+  }
+
+  function resizeLocationMap() {
+    if (currentStep !== 3 || typeof window.dispatchEvent !== "function") {
+      return;
+    }
+    window.setTimeout(function () {
+      try {
+        var resizeEvent = document.createEvent("Event");
+        resizeEvent.initEvent("resize", true, true);
+        window.dispatchEvent(resizeEvent);
+      } catch (error) {
+        /* Mapbox will still handle its normal resize events if this is unavailable. */
+      }
+    }, 0);
+    window.setTimeout(function () {
+      try {
+        var delayedResizeEvent = document.createEvent("Event");
+        delayedResizeEvent.initEvent("resize", true, true);
+        window.dispatchEvent(delayedResizeEvent);
+      } catch (error) {
+        /* Keep navigation usable even if a delayed resize is unavailable. */
+      }
+    }, 250);
+  }
+
+  function showStep(step) {
+    currentStep = Math.max(1, Math.min(5, step));
+    panels.forEach(function (panel) {
+      panel.hidden = panelStep(panel) !== currentStep;
+    });
+    updateStepIndicator();
+    if (currentStep === 5) {
+      renderReviewSummary();
+    }
+    resizeLocationMap();
+  }
+
+  function validateStep(step, focusInvalid) {
+    var invalidControl = findInvalidControl(step);
+    if (!invalidControl) {
+      setStepMessage(step, "");
+      return true;
+    }
+
+    setStepMessage(step, invalidMessage(invalidControl, step));
+    if (focusInvalid) {
+      showStep(step);
+      focusControl(invalidControl);
+    }
+    return false;
+  }
+
+  function validatePreviousSteps(targetStep) {
+    for (var step = 1; step < targetStep; step += 1) {
+      if (!validateStep(step, false)) {
+        showStep(step);
+        focusControl(findInvalidControl(step));
+        return false;
+      }
+      completedSteps[step] = true;
+    }
+    return true;
+  }
+
+  function rawValue(id) {
+    var element = document.getElementById(id);
+    return element ? String(element.value || "").trim() : "";
+  }
+
+  function selectedValue(id) {
+    var element = document.getElementById(id);
+    if (!element || element.tagName.toLowerCase() !== "select" || element.selectedIndex < 0) {
+      return rawValue(id);
+    }
+    var option = element.options[element.selectedIndex];
+    return option ? String(option.textContent || option.value || "").trim() : "";
+  }
+
+  function fileValue(id) {
+    var element = document.getElementById(id);
+    if (!element || !element.files || !element.files.length) {
+      return "No file selected";
+    }
+    return element.files[0].name || "Selected file";
+  }
+
+  function displayValue(value) {
+    return value || "Not entered";
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, function (character) {
+      return {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      }[character];
+    });
+  }
+
+  function maskedAadhaar() {
+    var value = rawValue("aadhaar_number").replace(/\D/g, "");
+    return value ? "XXXX XXXX " + value.slice(-4) : "Not entered";
+  }
+
+  function reviewItem(label, value, isWide) {
+    return '<div class="review-summary__item' + (isWide ? ' review-summary__item--wide' : '') + '">' +
+      "<dt>" + escapeHtml(label) + "</dt>" +
+      "<dd>" + escapeHtml(displayValue(value)) + "</dd>" +
+      "</div>";
+  }
+
+  function reviewGroup(title, items, isWide) {
+    return '<section class="review-summary__group' + (isWide ? ' review-summary__group--wide' : '') + '">' +
+      "<h3>" + escapeHtml(title) + "</h3>" +
+      '<dl class="review-summary__list">' + items.join("") + "</dl>" +
+      "</section>";
+  }
+
+  function renderReviewSummary() {
+    if (!reviewSummary) {
+      return;
+    }
+
+    reviewSummary.innerHTML = [
+      reviewGroup("Personal Details", [
+        reviewItem("Name", rawValue("name")),
+        reviewItem("Father's / Mother's / Spouse's Name", rawValue("another_name")),
+        reviewItem("Gender", selectedValue("gender")),
+        reviewItem("Date of Birth", rawValue("date_of_birth")),
+        reviewItem("Aadhaar Number", maskedAadhaar())
+      ]),
+      reviewGroup("Contact Details", [
+        reviewItem("Email", rawValue("email")),
+        reviewItem("Mobile Number", rawValue("mobile"))
+      ]),
+      reviewGroup("Address & Local Body Details", [
+        reviewItem("State", selectedValue("state")),
+        reviewItem("District", selectedValue("district")),
+        reviewItem("Local Body", selectedValue("local_body")),
+        reviewItem("Panchayat / Municipality / Corporation", selectedValue("panchayat")),
+        reviewItem("Ward Number", rawValue("ward_number")),
+        reviewItem("Full Address", rawValue("address"), true)
+      ], true),
+      reviewGroup("Location", [
+        reviewItem("Latitude and Longitude", rawValue("latitude"), true)
+      ]),
+      reviewGroup("Required Documents", [
+        reviewItem("Photo", fileValue("photo")),
+        reviewItem("Cancelled Cheque / Passbook", fileValue("cheque_passbook"))
+      ])
+    ].join("");
+  }
+
+  stepButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      var targetStep = Number(button.getAttribute("data-wizard-step"));
+      if (!targetStep || targetStep === currentStep) {
+        return;
+      }
+      if (targetStep < currentStep) {
+        showStep(targetStep);
+        return;
+      }
+      if (validatePreviousSteps(targetStep)) {
+        showStep(targetStep);
+      }
+    });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-wizard-next]"), function (button) {
+    button.addEventListener("click", function () {
+      var step = Number(button.getAttribute("data-wizard-next"));
+      if (validateStep(step, true)) {
+        completedSteps[step] = true;
+        showStep(step + 1);
+      }
+    });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-wizard-back]"), function (button) {
+    button.addEventListener("click", function () {
+      if (!button.disabled) {
+        showStep(Number(button.getAttribute("data-wizard-back")) - 1);
+      }
+    });
+  });
+
+  form.addEventListener("input", function () {
+    if (currentStep === 5) {
+      renderReviewSummary();
+    }
+  });
+
+  form.addEventListener("change", function () {
+    if (currentStep === 5) {
+      renderReviewSummary();
+    }
+  });
+
+  form.addEventListener("submit", function (event) {
+    if (currentStep !== 5) {
+      event.preventDefault();
+      validateStep(currentStep, true);
+      return;
+    }
+
+    for (var step = 1; step <= 4; step += 1) {
+      if (!validateStep(step, false)) {
+        event.preventDefault();
+        showStep(step);
+        focusControl(findInvalidControl(step));
+        return;
+      }
+      completedSteps[step] = true;
+    }
+
+    if (event.defaultPrevented) {
+      showStep(3);
+    }
+  });
+
+  showStep(1);
+})();
+</script>
 
 {% endblock %}

@@ -8,226 +8,603 @@
 <script src="https://unpkg.com/boxicons@2.1.4/dist/boxicons.js"></script>
 
 <style>
-    body {
-        font-family: 'Poppins', sans-serif;
-        background-color: #f8f9fa;
-        /* padding: 2rem; */
+    body.sub_page {
+        background: #f4f7fb;
     }
 
-    .container {
-        max-width: 100%;
-        margin: auto;
+    .vlc-registration-page,
+    .vlc-registration-page * {
+        box-sizing: border-box;
+    }
+
+    .vlc-registration-page {
+        --vlc-ink: #132449;
+        --vlc-muted: #64748b;
+        --vlc-blue: #1668d8;
+        --vlc-blue-soft: #edf5ff;
+        --vlc-border: #e3ebf5;
+        padding: clamp(32px, 5vw, 72px) 0 76px;
+        background: #f4f7fb;
+        overflow: hidden;
+    }
+
+    .vlc-registration-shell {
+        width: calc(100% - 8px);
+        max-width: none;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .vlc-hero {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1.08fr) minmax(260px, 0.92fr);
+        align-items: center;
+        min-height: 250px;
+        overflow: hidden;
+        padding: clamp(30px, 5vw, 58px) clamp(24px, 5vw, 64px);
+        border: 1px solid #dbeafe;
+        border-radius: 28px;
+        background: linear-gradient(112deg, #eaf5ff 0%, #e6f1ff 58%, #d8eaff 100%);
+        box-shadow: 0 18px 50px rgba(44, 94, 155, 0.12);
+    }
+
+    .vlc-hero::before,
+    .vlc-hero::after {
+        position: absolute;
+        content: "";
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .vlc-hero::before {
+        width: 360px;
+        height: 360px;
+        top: -210px;
+        right: 9%;
+        background: rgba(255, 255, 255, 0.24);
+    }
+
+    .vlc-hero::after {
+        width: 220px;
+        height: 220px;
+        right: -72px;
+        bottom: -128px;
+        border: 22px solid rgba(255, 255, 255, 0.22);
+    }
+
+    .vlc-hero-copy,
+    .vlc-hero-art {
+        position: relative;
+        z-index: 1;
+    }
+
+    .vlc-hero-copy {
+        display: flex;
+        align-items: center;
+        min-height: 125px;
+    }
+
+    .vlc-hero .header {
+        max-width: 620px;
+        margin: 0;
+        color: #132449;
+        font-size: clamp(2rem, 4vw, 3.2rem);
+        font-weight: 700;
+        line-height: 1.08;
+        letter-spacing: -0.045em;
+        text-align: left;
+    }
+
+    .vlc-hero-art {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 190px;
+    }
+
+    .vlc-hero-art img {
+        display: block;
+        width: min(100%, 360px);
+        max-height: 265px;
+        object-fit: contain;
+        filter: drop-shadow(0 16px 18px rgba(39, 64, 118, 0.12));
+    }
+
+    .vlc-content-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.62fr) minmax(300px, 0.88fr);
+        gap: 24px;
+        align-items: start;
+        margin-top: 24px;
+    }
+
+    .vlc-registration-page .container,
+    .vlc-registration-page .container2,
+    .vlc-legal-card {
+        width: auto;
+        max-width: none;
+        margin: 0;
+        padding: clamp(24px, 3vw, 38px);
+        border: 1px solid var(--vlc-border);
+        border-radius: 24px;
         background: #ffffff;
-        padding: 2rem;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 14px 38px rgba(36, 65, 105, 0.08);
     }
 
-    .header {
-        font-size: 26px;
+    .vlc-registration-page .container,
+    .vlc-registration-page .container2 {
+        height: auto;
+    }
+
+    .vlc-registration-page .container2 {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .vlc-registration-page .header {
+        color: #132449;
+        font-weight: 700;
+    }
+
+    .vlc-card-mark {
+        display: grid;
+        place-items: center;
+        width: 52px;
+        height: 52px;
+        margin-bottom: 24px;
+        border-radius: 16px;
+        color: #1668d8;
+        background: linear-gradient(145deg, #e9f3ff, #dcecff);
+        font-size: 28px;
+    }
+
+    .vlc-support-mark {
+        color: #5d3ac8;
+        background: linear-gradient(145deg, #f0eaff, #e7ddff);
+    }
+
+    .vlc-registration-page .container2 .header {
+        margin: 0 0 22px;
+        font-size: clamp(1.45rem, 2.2vw, 1.9rem);
+        line-height: 1.2;
+        text-align: left;
+    }
+
+    .vlc-registration-page .checklist {
+        margin: 0 0 18px;
+        padding: 0;
+        border: 0;
+        list-style: none;
+    }
+
+    .vlc-registration-page .checklist li {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin: 0 0 10px;
+        padding: 12px 14px;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        color: #31415f;
+        font-size: 0.98rem;
+        line-height: 1.55;
+        text-align: left;
+    }
+
+    .vlc-registration-page .checklist li:last-child {
+        margin-bottom: 0;
+    }
+
+    .vlc-registration-page .checklist i {
+        flex: 0 0 22px;
+        margin: 2px 0 0;
+        color: #19ad73;
+        font-size: 21px;
+        line-height: 1;
+    }
+
+    .vlc-registration-page .checklist--primary li,
+    .vlc-registration-page .checklist--notes li {
+        background: #fbfdff;
+        border-color: #edf2f8;
+    }
+
+    .vlc-registration-page .checklist--documents {
+        position: relative;
+        margin: -6px 0 20px 32px;
+        padding-left: 14px;
+        border-left: 1px dashed #b9d3f5;
+    }
+
+    .vlc-registration-page .checklist--documents li {
+        margin-bottom: 7px;
+        padding: 10px 13px;
+        background: var(--vlc-blue-soft);
+        border-color: #dfebfa;
+    }
+
+    .vlc-registration-page .checklist--documents i,
+    .vlc-registration-page .checklist--support i {
+        color: #1668d8;
+    }
+
+    .vlc-registration-page .checklist--support {
+        margin-bottom: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #edf1f7;
+    }
+
+    .vlc-registration-page .checklist--support:first-of-type {
+        padding-top: 0;
+        border-top: 0;
+    }
+
+    .vlc-registration-page .checklist--support:first-of-type li {
+        padding: 0 0 4px;
+        color: #64748b;
+        font-size: 0.93rem;
         font-weight: 600;
-        margin-bottom: 15px;
-        color: #333;
-        text-align: center;
+        background: transparent;
+        border: 0;
     }
 
-    .checklist {
-        border-left: 4px solid #455EB5;
-        padding-left: 15px;
-        margin-bottom: 20px;
+    .vlc-registration-page .checklist--support:not(:first-of-type) li:first-child {
+        padding: 0 0 10px;
+        color: #132449;
+        font-size: 1.02rem;
+        font-weight: 700;
+        background: transparent;
+        border: 0;
     }
 
-    .checklist li {
+    .vlc-registration-page .checklist--support:not(:first-of-type) li:not(:first-child) {
+        padding: 7px 10px;
+        color: #176bd0;
+        font-weight: 600;
+        background: #f3f8ff;
+        border-color: #e3efff;
+    }
+
+    .vlc-registration-page .checklist--support:last-of-type li {
+        color: #53627d;
+        background: #edf5ff;
+        border-color: #dceafe;
+    }
+
+    .vlc-registration-page .checklist--support:last-of-type i {
+        margin-top: 3px;
+    }
+
+    .vlc-legal-card {
+        margin-top: 24px;
+    }
+
+    .vlc-legal-card .terms,
+    .vlc-legal-card .refund-policy {
+        margin-top: 0;
+        margin-bottom: 18px;
+        padding: 20px;
+        border: 1px solid #e1ebf8;
+        border-radius: 16px;
+        background: #f5f9ff;
+        color: #53627d;
+        font-size: 0.93rem;
+        line-height: 1.65;
+    }
+
+    .vlc-legal-card .terms strong,
+    .vlc-legal-card .refund-policy > strong,
+    .vlc-legal-card .refund-policy h4 {
+        color: #132449;
+    }
+
+    .vlc-legal-card .terms > strong,
+    .vlc-legal-card .refund-policy > strong {
+        display: inline-block;
+        margin-bottom: 4px;
+        font-size: 1.08rem;
+    }
+
+    .vlc-legal-card .terms .checklist,
+    .vlc-legal-card .refund-policy .checklist {
+        margin-top: 16px;
+        margin-bottom: 0;
+    }
+
+    .vlc-legal-card .terms .checklist li,
+    .vlc-legal-card .refund-policy .checklist li {
+        padding: 12px 14px;
+        background: #ffffff;
+        border-color: #e7eef8;
+    }
+
+    .vlc-legal-card .terms .checklist i {
+        color: #1668d8;
+    }
+
+    .vlc-legal-card .refund-policy h4 {
+        margin: 10px 0 0;
+        font-size: 1rem;
+    }
+
+    .vlc-registration-page .checkbox-container {
         display: flex;
-        align-items: center;
-        font-size: 16px;
-        margin-bottom: 10px;
+        align-items: flex-start;
+        gap: 10px;
+        margin: 22px 0 0;
+        padding: 14px 16px;
+        border: 1px solid #dce8f8;
+        border-radius: 14px;
+        color: #33415d;
+        background: #eef5ff;
+        cursor: pointer;
+        font-size: 0.96rem;
+        line-height: 1.45;
     }
 
-    .checklist i {
-        margin-right: 10px;
-        color: #1f8027;
-    }
-
-    .terms {
-        background: #eef2ff;
-        padding: 15px;
-        border-radius: 8px;
-        margin-top: 20px;
-        font-size: 14px;
-        color: #555;
-    }
-
-    .checkbox-container {
-        display: flex;
-        align-items: center;
-        margin-top: 20px;
-        font-size: 16px;
-        color: #333;
-        background: #eef2ff;
-        padding: 10px;
-        border-radius: 8px;
+    .vlc-registration-page .checkbox-container input {
+        flex: 0 0 auto;
+        width: 18px;
+        height: 18px;
+        margin: 1px 0 0;
+        accent-color: #1668d8;
         cursor: pointer;
     }
 
-    .checkbox-container input {
-        margin-right: 10px;
-        cursor: pointer;
-    }
-
-    .button-container {
+    .vlc-registration-page .button-container {
+        margin-top: 22px;
         text-align: center;
-        margin-top: 20px;
     }
 
-    .button-36 {
-        background: linear-gradient(92.88deg, #455EB5 9.16%, #5643CC 43.89%, #673FD7 64.72%);
-        border-radius: 8px;
-        border: none;
+    .vlc-registration-page .button-36 {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 190px;
+        padding: 13px 24px;
+        border: 0;
+        border-radius: 12px;
         color: #ffffff;
-        font-size: 16px;
-        font-weight: 500;
-        padding: 12px 24px;
+        background: linear-gradient(100deg, #1677e9, #6336da);
+        box-shadow: 0 10px 20px rgba(63, 86, 215, 0.2);
+        font-size: 0.98rem;
+        font-weight: 600;
         cursor: not-allowed;
-        transition: all 0.3s;
+        transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
         opacity: 0.5;
     }
 
-    .button-36:enabled {
-        opacity: 1;
+    .vlc-registration-page .button-36:enabled {
         cursor: pointer;
+        opacity: 1;
     }
 
-
-    .container2 {
-        max-width: 100%;
-        /* margin: auto; */
-        background: #ffffff;
-        padding: 2rem;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        height: fit-content;
+    .vlc-registration-page .button-36:enabled:hover,
+    .vlc-registration-page .button-36:enabled:focus-visible {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 26px rgba(63, 86, 215, 0.28);
     }
 
+    .vlc-registration-page a {
+        text-decoration: none;
+    }
+
+    @media (max-width: 900px) {
+        .vlc-content-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .vlc-registration-page .container2 {
+            order: 2;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .vlc-registration-page {
+            padding: 24px 12px 52px;
+        }
+
+        .vlc-registration-shell {
+            width: 100%;
+        }
+
+        .vlc-hero {
+            grid-template-columns: minmax(0, 1fr);
+            min-height: 0;
+            padding: 30px 22px 0;
+            border-radius: 22px;
+        }
+
+        .vlc-hero-copy {
+            min-height: 0;
+        }
+
+        .vlc-hero .header {
+            font-size: 2rem;
+        }
+
+        .vlc-hero-art {
+            min-height: 170px;
+            align-items: flex-end;
+        }
+
+        .vlc-hero-art img {
+            width: min(78vw, 290px);
+            max-height: 205px;
+        }
+
+        .vlc-content-grid {
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .vlc-registration-page .container,
+        .vlc-registration-page .container2,
+        .vlc-legal-card {
+            padding: 22px 18px;
+            border-radius: 19px;
+        }
+
+        .vlc-card-mark {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 18px;
+            font-size: 24px;
+        }
+
+        .vlc-registration-page .checklist li {
+            padding: 11px 12px;
+            font-size: 0.93rem;
+        }
+
+        .vlc-registration-page .checklist--documents {
+            margin-left: 0;
+            padding-left: 10px;
+        }
+
+        .vlc-legal-card {
+            margin-top: 16px;
+        }
+
+        .vlc-legal-card .terms,
+        .vlc-legal-card .refund-policy {
+            padding: 16px;
+            font-size: 0.9rem;
+        }
+
+        .vlc-registration-page .button-36 {
+            width: 100%;
+        }
+    }
 </style>
-<h4 class="py-5"></h4>
 
-<div style="display: flex; gap: 20px;">
+<div class="vlc-registration-page">
+    <div class="vlc-registration-shell">
+        <section class="vlc-hero" aria-labelledby="vlc-page-title">
+            <div class="vlc-hero-copy">
+                <h1 id="vlc-page-title" class="header">Registration Requirements</h1>
+            </div>
+            <div class="vlc-hero-art">
+                <img src="{% static 'web/assets2/images/slider-img.png' %}" alt="">
+            </div>
+        </section>
 
+        <div class="vlc-content-grid">
+            <div class="container">
+                <div class="vlc-card-mark" aria-hidden="true"><i class='bx bx-file'></i></div>
 
-<div>
-    <div class="container">
-        <h2 class="header">Registration Requirements</h2>
-        
-        <ul class="checklist">
-            <li><i class='bx bx-check-circle'></i> Valid Aadhaar and PAN card (will be authenticated during registration).</li>
-            <li><i class='bx bx-check-circle'></i> Copies of the following documents:</li>
-        </ul>
-        
-        <ul class="checklist">
-            <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i>Aadhar card (Front and Back side)</li>
-            <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i> PAN Card</li>
-            <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i>Applicant's Photo</li>
-            <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i>Highest Qualification Document</li>        
-        </ul>
-    
-    
-        <ul class="checklist">
-            <li><i class='bx bx-check-circle'></i>Refer to
-               <a href="http://sscentrepreneur.com/exam/login"></a>  for more details.</li>
-                            <li><i class='bx bx-check-circle'></i>*Only
+                <ul class="checklist checklist--primary">
+                    <li><i class='bx bx-check-circle'></i> Valid Aadhaar and PAN card (will be authenticated during registration).</li>
+                    <li><i class='bx bx-check-circle'></i> Copies of the following documents:</li>
+                </ul>
+
+                <ul class="checklist checklist--documents">
+                    <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i>Aadhar card (Front and Back side)</li>
+                    <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i> PAN Card</li>
+                    <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i>Applicant's Photo</li>
+                    <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i>Highest Qualification Document</li>
+                </ul>
+
+                <ul class="checklist checklist--notes">
+                    <li><i class='bx bx-check-circle'></i>Refer to
+                       <a href="http://sscentrepreneur.com/exam/login"></a>  for more details.</li>
+                    <li><i class='bx bx-check-circle'></i>*Only
                     .jpg/.png/.pdf file types are accepted, and the file should be less than 80 KB in size.</li>
                     <li><i class='bx bx-check-circle'></i>The SSC centre
                         should be accessible.</li>
-        </ul>
-    
-        <div class="terms">
-            <strong>Terms & Conditions:</strong> <br>This Terms and Conditions agreement (the "Agreement") is a legal contract between
-            you (the User) and SSC E-Governance Services India Limited (SSC). By accessing or
-            using our services, you agree to comply with the terms outlined below. <br><br>
-            <ul class="checklist">
-                <li><i class='bx bxs-right-arrow' style='color:#000'></i>This Terms and Conditions
-                    agreement (the Agreement) is a legal contract between you (the User) and SSC
-                    E-Governance Services Limited (SSC). By accessing or using our services, you
-                    agree to comply with the terms outlined below. SSC reserves the right to modify,
-                    add, or remove portions of these Terms and Conditions at any time without prior
-                    notice. Users are encouraged to periodically review this section to stay updated on
-                    any changes. You also declare that the information provided in the form is accurate and complete
-                    to the best of your knowledge and accept full legal responsibility for any
-                    discrepancies or inaccuracies. By accepting these Terms and Conditions, you confirm
-                    your agreement with the policies outlined above.</li>
-            </ul>
+                </ul>
+            </div>
+
+            <div class="container2">
+                <div class="vlc-card-mark vlc-support-mark" aria-hidden="true"><i class='bx bx-headphone'></i></div>
+                <h2 class="header">We're here to assist you every step of the way!</h2>
+
+                <ul class="checklist checklist--support">
+                    <li>Your Trusted Support Partner</li>
+                </ul>
+
+                <ul class="checklist checklist--support">
+                    <li><i class='bx bxs-down-arrow' style='color:#6185d9'></i>Call</li>
+                    <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i>+91 8547418316 </li>
+                    <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i>+91 8547928317 </li>
+                </ul>
+
+                <ul class="checklist checklist--support">
+                    <li><i class='bx bxs-down-arrow' style='color:#6185d9'></i>Email</li>
+                    <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i>samatwaservicecenter.gov.in@gmail.com </li>
+                </ul>
+
+                <ul class="checklist checklist--support">
+                    <li style="text-align: justify;"><i class='bx bxs-right-arrow' style='color:#6185d9'></i> Have a question or need assistance? Call our helpline at +91 8547418316 or +91 8547928317 for inquiries or to report an issue. Our support team is ready to assist you!</li>
+                </ul>
+
+                <div class="button-container">
+                    <a href="{% url 'web:contact' %}">
+                        <button class="button-36"  >Contact Now</button>
+                    </a>
+                </div>
+            </div>
         </div>
 
-        <div class="terms">
-            <strong>Privacy Policy:</strong> <br>This Privacy Policy describes how SSC E-Governance Services India Limited ("SSC", "we", "us", or "our") collects, uses, and protects your information when you access or use our services. By using our services, you agree to the collection and use of information in accordance with this policy.<br><br>
-            <ul class="checklist">
-                <li><i class='bx bxs-right-arrow' style='color:#000'></i><strong>Information Collection:</strong> We may collect personal information, including but not limited to your name, contact details, Aadhaar UID/VID, as part of our service authentication process.</li>
-                <li><i class='bx bxs-right-arrow' style='color:#000'></i><strong>Use of Information:</strong> The information collected will be used solely for the purpose of providing, improving, and securing our services. We will not share your data with third parties without your consent, except as required by law.</li>
-                <li><i class='bx bxs-right-arrow' style='color:#000'></i><strong>Data Protection:</strong> We implement appropriate security measures to safeguard your personal information against unauthorized access, alteration, disclosure, or destruction.</li>
-                <li><i class='bx bxs-right-arrow' style='color:#000'></i><strong>Consent:</strong> By using our services, you consent to the collection, processing, and storage of your information in accordance with this policy.</li>
-                <li><i class='bx bxs-right-arrow' style='color:#000'></i><strong>Updates to Policy:</strong> We may update this Privacy Policy from time to time. Users are encouraged to periodically review this section for any changes.</li>
-            </ul>
-        </div>
+        <section class="vlc-legal-card">
+            <div class="vlc-card-mark" aria-hidden="true"><i class='bx bx-file'></i></div>
 
-        <div class="refund-policy">
-            <strong>Refund Policy:</strong> <br>
-            Samatwa Service Centre (SSC) strives to ensure customer satisfaction. Our Refund Policy outlines
-            the conditions under which refunds may be issued. <br><br>
-        
-            <h4>Eligibility for Refund:</h4>
-            <ul class="checklist">
-                <li><i class='bx bxs-check-circle' style='color:#4CAF50'></i> Refund requests must be submitted within <strong>7 days</strong> of the transaction date.</li>
-                <li><i class='bx bxs-check-circle' style='color:#4CAF50'></i> Refunds are processed only if services were not provided or there was a technical issue.</li>
-                <li><i class='bx bxs-check-circle' style='color:#4CAF50'></i> Refunds are processed within <strong>14 business days</strong> after approval.</li>
-            </ul>
-        </div>
-    
-        <label class="checkbox-container">
-            <input type="checkbox" id="enableButton"> I have read and accept the terms & conditions.
-        </label>
-    
-        <div class="button-container">
-            <a href="{% url 'exam:entrepreneur_register' %}">
-                <button class="button-36" id="getStartedButton" disabled>Get Started</button>
-            </a>
-        </div>
+            <div class="terms">
+                <strong>Terms & Conditions:</strong> <br>This Terms and Conditions agreement (the "Agreement") is a legal contract between
+                you (the User) and SSC E-Governance Services India Limited (SSC). By accessing or
+                using our services, you agree to comply with the terms outlined below. <br><br>
+                <ul class="checklist">
+                    <li><i class='bx bxs-right-arrow' style='color:#000'></i>This Terms and Conditions
+                        agreement (the Agreement) is a legal contract between you (the User) and SSC
+                        E-Governance Services Limited (SSC). By accessing or using our services, you
+                        agree to comply with the terms outlined below. SSC reserves the right to modify,
+                        add, or remove portions of these Terms and Conditions at any time without prior
+                        notice. Users are encouraged to periodically review this section to stay updated on
+                        any changes. You also declare that the information provided in the form is accurate and complete
+                        to the best of your knowledge and accept full legal responsibility for any
+                        discrepancies or inaccuracies. By accepting these Terms and Conditions, you confirm
+                        your agreement with the policies outlined above.</li>
+                </ul>
+            </div>
+
+            <div class="terms">
+                <strong>Privacy Policy:</strong> <br>This Privacy Policy describes how SSC E-Governance Services India Limited ("SSC", "we", "us", or "our") collects, uses, and protects your information when you access or use our services. By using our services, you agree to the collection and use of information in accordance with this policy.<br><br>
+                <ul class="checklist">
+                    <li><i class='bx bxs-right-arrow' style='color:#000'></i><strong>Information Collection:</strong> We may collect personal information, including but not limited to your name, contact details, Aadhaar UID/VID, as part of our service authentication process.</li>
+                    <li><i class='bx bxs-right-arrow' style='color:#000'></i><strong>Use of Information:</strong> The information collected will be used solely for the purpose of providing, improving, and securing our services. We will not share your data with third parties without your consent, except as required by law.</li>
+                    <li><i class='bx bxs-right-arrow' style='color:#000'></i><strong>Data Protection:</strong> We implement appropriate security measures to safeguard your personal information against unauthorized access, alteration, disclosure, or destruction.</li>
+                    <li><i class='bx bxs-right-arrow' style='color:#000'></i><strong>Consent:</strong> By using our services, you consent to the collection, processing, and storage of your information in accordance with this policy.</li>
+                    <li><i class='bx bxs-right-arrow' style='color:#000'></i><strong>Updates to Policy:</strong> We may update this Privacy Policy from time to time. Users are encouraged to periodically review this section for any changes.</li>
+                </ul>
+            </div>
+
+            <div class="refund-policy">
+                <strong>Refund Policy:</strong> <br>
+                Samatwa Service Centre (SSC) strives to ensure customer satisfaction. Our Refund Policy outlines
+                the conditions under which refunds may be issued. <br><br>
+
+                <h4>Eligibility for Refund:</h4>
+                <ul class="checklist">
+                    <li><i class='bx bxs-check-circle' style='color:#4CAF50'></i> Refund requests must be submitted within <strong>7 days</strong> of the transaction date.</li>
+                    <li><i class='bx bxs-check-circle' style='color:#4CAF50'></i> Refunds are processed only if services were not provided or there was a technical issue.</li>
+                    <li><i class='bx bxs-check-circle' style='color:#4CAF50'></i> Refunds are processed within <strong>14 business days</strong> after approval.</li>
+                </ul>
+            </div>
+
+            <label class="checkbox-container">
+                <input type="checkbox" id="enableButton"> I have read and accept the terms & conditions.
+            </label>
+
+            <div class="button-container">
+                <a href="{% url 'exam:entrepreneur_register' %}">
+                    <button class="button-36" id="getStartedButton" disabled>Get Started</button>
+                </a>
+            </div>
+        </section>
     </div>
 </div>
 
-<div class="container2" style="width: 200%;">
-    <h2 class="header">We're here to assist you every step of the way!</h2>
-
-    <ul class="checklist">
-        <li>Your Trusted Support Partner</li>
-
-
-      </ul>
-
-    <ul class="checklist">
-        <li><i class='bx bxs-down-arrow' style='color:#6185d9'></i>Call</li>
-        <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i>+91 8547418316 </li>
-        <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i>+91 8547928317 </li>
-
-      </ul> 
-      <ul class="checklist">
-        <li><i class='bx bxs-down-arrow' style='color:#6185d9'></i>Email</li>
-        <li><i class='bx bxs-right-arrow' style='color:#6185d9'></i>samatwaservicecenter.gov.in@gmail.com </li>
-
-      </ul> 
-
-      <ul class="checklist">
-
-        <li style="text-align: justify;"><i class='bx bxs-right-arrow' style='color:#6185d9'></i> Have a question or need assistance? Call our helpline at +91 8547418316 or +91 8547928317 for inquiries or to report an issue. Our support team is ready to assist you!</li>
-
-      </ul> 
-    <div class="button-container">
-        <a href="{% url 'web:contact' %}">
-            <button class="button-36"  >Contact Now</button>
-        </a>
-    </div>
-</div>
-</div>
 <script>
     document.getElementById("enableButton").addEventListener("change", function () {
         let button = document.getElementById("getStartedButton");

@@ -158,6 +158,13 @@ from django.conf import settings
 from datetime import datetime
 
 
+def render_registration(request, context=None):
+    """Render the registration page with deployment-provided map settings."""
+    page_context = dict(context or {})
+    page_context.setdefault("mapbox_access_token", getattr(settings, "MAPBOX_ACCESS_TOKEN", ""))
+    return render(request, "web/exam/register.html", page_context)
+
+
 class UserRegistrationView(View):
     def get(self, request):
         states = RegistrationState.objects.all()
@@ -166,9 +173,8 @@ class UserRegistrationView(View):
         form = UserRegistrationForm()
         selected_state = None  # Initially, no state is selected
 
-        return render(
+        return render_registration(
             request,
-            "web/exam/register.html",
             {"form": form, "states": states, "districts": districts, 'panchayats': panchayats, "selected_state": selected_state},
         )
 
@@ -247,10 +253,10 @@ class UserRegistrationView(View):
         #     }
         # )
         # else:
-        return render(request, "web/exam/register.html",{"form": form, 
-                                                             "states": states,
-                                                               "districts": districts, 
-                                                               "selected_state": selected_state})
+        return render_registration(request, {"form": form,
+                                             "states": states,
+                                             "districts": districts,
+                                             "selected_state": selected_state})
 
 
 
@@ -1317,7 +1323,7 @@ def temporary_user(request):
             try:
                 lattitude, longitude = map(lambda x: float(x.strip()), location_data.split(','))  
             except (ValueError, AttributeError):
-                return render(request, "web/exam/register.html", {'error': 'There is something wrong with your latitude and longitude, please check that and submit again...!!'})
+                return render_registration(request, {'error': 'There is something wrong with your latitude and longitude, please check that and submit again...!!'})
 
 
             registered_users = TemporaryUser.objects.filter(main_exam_passed=True)
@@ -1327,14 +1333,14 @@ def temporary_user(request):
                     if user.lattitude and user.longitude:
                         distance = haversine(lattitude, longitude, user.lattitude, user.longitude)
                         if distance <= 0.5:  
-                            return render(request, "web/exam/register.html", {
+                            return render_registration(request, {
                             "error": f"{user.id}Another user has already registered in this location. Please try again at another location."
                             })
                 else:
                     if user.lattitude and user.longitude:
                         distance = haversine(lattitude, longitude, user.lattitude, user.longitude)
                         if distance <= 1:  
-                            return render(request, "web/exam/register.html", {
+                            return render_registration(request, {
                             "error": f"{user.id}Another user has already registered in this location. Please try again at another location."
                             })
 
@@ -1349,7 +1355,7 @@ def temporary_user(request):
                         distance = haversine(lattitude, longitude, user_lat, user_lon)
 
                         if distance <= 0.5:  
-                                return render(request, "web/exam/register.html", {
+                                return render_registration(request, {
                                 "error": f"Another user has already a centre in this location. Please try again at another location. {user.id}"
                                 })           
                 else:
@@ -1360,7 +1366,7 @@ def temporary_user(request):
                         distance = haversine(lattitude, longitude, user_lat, user_lon)
 
                         if distance <= 1:  
-                                return render(request, "web/exam/register.html", {
+                                return render_registration(request, {
                                 "error": f"Another user has already a centre in this location. Please try again at another location. {user.id}"
                                 })
 
@@ -1375,28 +1381,28 @@ def temporary_user(request):
                 same_aadhaar_user = TemporaryUser.objects.filter(payment=True, aadhaar_number=aadhaar_number).first()
                 same_mobile_user = TemporaryUser.objects.filter(payment=True, mobile=mobile).first()
                 if same_email_user:
-                    return render(request, "web/exam/register.html", {
+                    return render_registration(request, {
                                             "states": states,
                                             "districts": districts,
                                             "selected_state": selected_state, 
                                             'error': 'Another user has already registered with this email'
                                         })
                 elif same_ward_user:
-                    return render(request, "web/exam/register.html", {
+                    return render_registration(request, {
                                             "states": states,
                                             "districts": districts,
                                             "selected_state": selected_state, 
                                             'error': 'Another user has already registered in this location....Please Try again at another location'
                                         })
                 elif same_aadhaar_user:
-                    return render(request, "web/exam/register.html", {
+                    return render_registration(request, {
                                             "states": states,
                                             "districts": districts,
                                             "selected_state": selected_state, 
                                             'error': 'Another user has already registered with this aadhaar number'
                                         })
                 elif same_mobile_user:
-                    return render(request, "web/exam/register.html", {
+                    return render_registration(request, {
                                             "states": states,
                                             "districts": districts,
                                             "selected_state": selected_state, 
@@ -1438,7 +1444,7 @@ def temporary_user(request):
                 print(e)
 
     # Render Registration Form
-    return render(request, "web/exam/register.html", {
+    return render_registration(request, {
         "states": states,
         "districts": districts,
         "selected_state": selected_state

@@ -260,6 +260,10 @@ AUTH_USER_MODEL = 'web.User'
 
 load_dotenv()
 
+# Mapbox's public access token is injected into the page from deployment
+# configuration instead of being committed to the repository.
+MAPBOX_ACCESS_TOKEN = os.getenv("MAPBOX_ACCESS_TOKEN", "")
+
 
 TIME_ZONE = 'Asia/Kolkata'
 USE_TZ = True
