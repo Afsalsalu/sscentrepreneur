@@ -25,6 +25,7 @@ backup.sql
 # User uploads and runtime logs
 /media/
 /logs/
+django_debug.log
 *.log
 
 # Python environments and generated caches
