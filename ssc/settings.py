@@ -120,6 +120,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "ssc.context_processors.integration_keys",
             ],
         },
     },
@@ -183,6 +184,7 @@ PSPDFKIT_API_KEY = config("PSPDFKIT_API_KEY", default="")
 RECAPTCHA_SITE_KEY = config("RECAPTCHA_SITE_KEY", default="")
 RECAPTCHA_SECRET_KEY = config("RECAPTCHA_SECRET_KEY", default="")
 MAPBOX_ACCESS_TOKEN = config("MAPBOX_ACCESS_TOKEN", default="")
+GOOGLE_MAPS_API_KEY = config("GOOGLE_MAPS_API_KEY", default="")
 
 SENDINBLUE_API_KEY = config("SENDINBLUE_API_KEY", default="")
 BREVO_API_KEY = os.getenv("SENDINBLUE_API_KEY", "")
