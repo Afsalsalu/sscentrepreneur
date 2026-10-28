@@ -12,7 +12,9 @@ secrets/
 **/secrets/
 
 # Databases, dumps, and backups
+*.sqlite
 *.sqlite3
+*.sqlite3-*
 *.sqlite3-journal
 *.db
 *.sql
@@ -23,16 +25,16 @@ backup.sql
 /database/
 
 # User uploads and runtime logs
-/media/
-/logs/
+media/
+logs/
 django_debug.log
 *.log
 
 # Python environments and generated caches
-/venv/
-/.venv/
-/env/
-/ENV/
+venv/
+.venv/
+env/
+ENV/
 __pycache__/
 *.py[cod]
 *$py.class
@@ -43,13 +45,13 @@ __pycache__/
 htmlcov/
 
 # Node dependencies
-/node_modules/
+node_modules/
 
 # Collected static/build output
-/assets/
-/staticfiles/
-/dist/
-/build/
+assets/
+staticfiles/
+dist/
+build/
 
 # Archives and generated artifacts
 *.zip
