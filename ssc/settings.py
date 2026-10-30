@@ -4,6 +4,7 @@ Secrets and deployment-specific values are supplied through the environment.
 """
 
 import os
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from decouple import config
@@ -65,6 +66,23 @@ if _script_name:
 else:
     FORCE_SCRIPT_NAME = None
     _url_prefix = ""
+
+IS_TEST_ENV = DJANGO_ENV in {"test", "testing"} or _url_prefix == "/test"
+if IS_TEST_ENV:
+    # Temporary test-environment pricing; production keeps the live fee.
+    _registration_fee_value = config("TEST_REGISTRATION_FEE", default="5.00")
+else:
+    _registration_fee_value = "1469.00"
+
+try:
+    REGISTRATION_FEE = Decimal(_registration_fee_value).quantize(Decimal("0.01"))
+except (InvalidOperation, TypeError, ValueError) as exc:
+    raise ImproperlyConfigured("REGISTRATION_FEE must be a valid decimal amount") from exc
+
+if REGISTRATION_FEE <= 0:
+    raise ImproperlyConfigured("REGISTRATION_FEE must be greater than zero")
+
+REGISTRATION_FEE_PAISE = int(REGISTRATION_FEE * 100)
 
 STATIC_URL = f"{_url_prefix}/static/" if _url_prefix else "/static/"
 MEDIA_URL = f"{_url_prefix}/media/" if _url_prefix else "/media/"
@@ -130,15 +148,18 @@ AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend"]
 
 
 def _database_settings():
-    return {
-        "ENGINE": config("DB_ENGINE", default="django.db.backends.mysql"),
+    engine = config("DB_ENGINE", default="django.db.backends.mysql")
+    database_settings = {
+        "ENGINE": engine,
         "NAME": config("DB_NAME", default=""),
         "USER": config("DB_USER", default=""),
         "PASSWORD": config("DB_PASSWORD", default=""),
         "HOST": config("DB_HOST", default=""),
         "PORT": config("DB_PORT", default="3306"),
-        "OPTIONS": {"charset": "utf8mb4"},
     }
+    if engine != "django.db.backends.sqlite3":
+        database_settings["OPTIONS"] = {"charset": "utf8mb4"}
+    return database_settings
 
 
 DATABASES = {

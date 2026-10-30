@@ -1,7 +1,9 @@
 
 import base64
 import tempfile
+from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.conf import settings
@@ -9,8 +11,13 @@ from django.test import Client, RequestFactory, SimpleTestCase, TestCase, overri
 from django.urls import get_script_prefix, resolve, reverse, set_script_prefix
 
 from . import views
-from .models import MainExamOption, MainExamProgress, MainExamQuestion
-from .models.user_registration import DocumentValidation, TemporaryUser
+from .models import MainExamOption, MainExamProgress, MainExamQuestion, Payment
+from .models.user_registration import (
+    DocumentValidation,
+    RegistrationDistrict,
+    RegistrationState,
+    TemporaryUser,
+)
 from web import views as web_views
 
 User = get_user_model()
@@ -174,3 +181,131 @@ class ExamBrowserFlowTests(TestCase):
         progress = MainExamProgress.objects.get(user=self.user)
         self.assertEqual(progress.correct_answers, 0)
         self.assertEqual(progress.total_questions, 1)
+
+
+class RegistrationPaymentAmountTests(TestCase):
+    def setUp(self):
+        self.amount_settings = override_settings(
+            REGISTRATION_FEE=Decimal("5.00"),
+            REGISTRATION_FEE_PAISE=500,
+        )
+        self.amount_settings.enable()
+        self.addCleanup(self.amount_settings.disable)
+
+    @patch("exam.views.razorpay.Client")
+    def test_payment_order_uses_configured_registration_fee(self, client_class):
+        client_class.return_value.order.create.return_value = {"id": "order_test_5"}
+
+        response = self.client.post(reverse("exam:create_payment_order"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["amount"], 500)
+        self.assertEqual(response.json()["registration_fee"], "5.00")
+        self.assertEqual(
+            client_class.return_value.order.create.call_args.kwargs["data"]["amount"],
+            500,
+        )
+
+    def test_registration_page_displays_configured_fee(self):
+        response = self.client.get(reverse("exam:entrepreneur_register"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Registration fee: ₹5.00")
+
+    @patch("exam.views.tec_email_send")
+    @patch("exam.views.razorpay.Client")
+    def test_captured_payment_saves_registration_and_payment_at_same_amount(
+        self, client_class, email_send
+    ):
+        state = RegistrationState.objects.create(name="Kerala")
+        district = RegistrationDistrict.objects.create(
+            state=state,
+            district_name="Test District",
+        )
+        temp_user = TemporaryUser.objects.create(
+            name="Test Centre",
+            mobile="9000000001",
+            email="test-centre@example.com",
+            another_name="Test Parent",
+            state=state.name,
+            district=district.district_name,
+            panchayat="Test Panchayat",
+            ward_number="1",
+            gender="male",
+            aadhaar_number="123456789012",
+            address="Test address",
+        )
+        session = self.client.session
+        session["registration_user_id"] = temp_user.id
+        session.save()
+
+        razorpay_client = client_class.return_value
+        razorpay_client.payment.fetch.return_value = {
+            "status": "captured",
+            "order_id": "order_test_5",
+            "amount": 500,
+            "currency": "INR",
+            "email": temp_user.email,
+        }
+
+        response = self.client.post(
+            reverse("exam:payment_success"),
+            data={
+                "payment_id": "pay_test_5",
+                "razorpay_order_id": "order_test_5",
+                "razorpay_signature": "signature_test_5",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["success"])
+        self.assertEqual(response.json()["receipt"]["amount"], "5.00")
+        razorpay_client.utility.verify_payment_signature.assert_called_once()
+        saved_payment = Payment.objects.get(provider_order_id="order_test_5")
+        self.assertEqual(saved_payment.amount, 5.0)
+        self.assertTrue(saved_payment.user_registration.is_paid)
+        self.assertTrue(TemporaryUser.objects.get(pk=temp_user.pk).payment)
+        email_send.assert_called_once()
+
+    @patch("exam.views.razorpay.Client")
+    def test_payment_amount_mismatch_does_not_save_records(self, client_class):
+        temp_user = TemporaryUser.objects.create(
+            name="Mismatch Centre",
+            mobile="9000000002",
+            email="mismatch@example.com",
+            state="Kerala",
+            district="Test District",
+            panchayat="Test Panchayat",
+            ward_number="1",
+            gender="male",
+            aadhaar_number="123456789013",
+            address="Test address",
+        )
+        session = self.client.session
+        session["registration_user_id"] = temp_user.id
+        session.save()
+
+        razorpay_client = client_class.return_value
+        razorpay_client.payment.fetch.return_value = {
+            "status": "captured",
+            "order_id": "order_wrong_amount",
+            "amount": 146900,
+            "currency": "INR",
+            "email": temp_user.email,
+        }
+
+        response = self.client.post(
+            reverse("exam:payment_success"),
+            data={
+                "payment_id": "pay_wrong_amount",
+                "razorpay_order_id": "order_wrong_amount",
+                "razorpay_signature": "signature_wrong_amount",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["message"], "Payment amount mismatch")
+        self.assertFalse(Payment.objects.exists())
+        self.assertFalse(TemporaryUser.objects.get(pk=temp_user.pk).payment)

@@ -162,6 +162,7 @@ def render_registration(request, context=None):
     """Render the registration page with deployment-provided map settings."""
     page_context = dict(context or {})
     page_context.setdefault("mapbox_access_token", getattr(settings, "MAPBOX_ACCESS_TOKEN", ""))
+    page_context.setdefault("registration_fee", settings.REGISTRATION_FEE)
     return render(request, "web/exam/register.html", page_context)
 
 
@@ -1434,9 +1435,11 @@ def temporary_user(request):
                     lattitude=lattitude,
                     longitude=longitude
                 )
+                request.session["registration_user_id"] = user.id
                 return render(request, "web/exam/cnfm_pymt-btn.html", {
                     'user': user,
-                    'amount': 100,
+                    'amount': settings.REGISTRATION_FEE_PAISE,
+                    'registration_fee': settings.REGISTRATION_FEE,
                     "razorpay_key_id": settings.RAZORPAY_KEY_ID
                 })
             except Exception as e:
@@ -1454,98 +1457,152 @@ def temporary_user(request):
 
 
 def create_payment_order(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+    amount = settings.REGISTRATION_FEE_PAISE
+    currency = 'INR'
+    registration_user_id = request.session.get("registration_user_id")
+    receipt = f"registration_{registration_user_id or uuid.uuid4().hex[:12]}"
+    order_data = {
+        'amount': amount,
+        'currency': currency,
+        'receipt': receipt,
+        'payment_capture': 1,
+    }
 
     razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-    if request.method == 'POST':
-        amount = 146900
-        currency = 'INR'
-        order_data = {
-            'amount': amount,
-            'currency': currency,
-            'payment_capture': 1,
-        }
-        
-        # Create Razorpay order
-        order = razorpay_client.order.create(data=order_data)
-        razorpay_order_id = order['id']
-        print("order id is: ", razorpay_order_id)
-        
-        # Send the Razorpay order ID to the frontend
-        return JsonResponse({
-            'razorpay_order_id': razorpay_order_id,
-            'amount': amount
-        })
-    
+    order = razorpay_client.order.create(data=order_data)
+    razorpay_order_id = order['id']
+
+    return JsonResponse({
+        'razorpay_order_id': razorpay_order_id,
+        'amount': amount,
+        'registration_fee': f"{settings.REGISTRATION_FEE:.2f}",
+        'receipt': receipt,
+    })
 
 def payment_success(request):
-    if request.method == "POST":
-        import json
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Invalid request"}, status=405)
+
+    try:
         data = json.loads(request.body)
-        payment_id = data.get('payment_id')
-        razorpay_order_id = data.get('razorpay_order_id')
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid payment data"}, status=400)
 
-        razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-        
-        # Verify the payment
+    payment_id = data.get('payment_id')
+    razorpay_order_id = data.get('razorpay_order_id')
+    razorpay_signature = data.get('razorpay_signature')
+    if not all((payment_id, razorpay_order_id, razorpay_signature)):
+        return JsonResponse({"success": False, "message": "Incomplete payment data"}, status=400)
+
+    razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+    try:
+        razorpay_client.utility.verify_payment_signature({
+            "razorpay_order_id": razorpay_order_id,
+            "razorpay_payment_id": payment_id,
+            "razorpay_signature": razorpay_signature,
+        })
+        payment = razorpay_client.payment.fetch(payment_id)
+
+        if payment.get('status') != 'captured':
+            return JsonResponse({"success": False, "message": "Payment Failed"}, status=400)
+        if payment.get('order_id') != razorpay_order_id:
+            return JsonResponse({"success": False, "message": "Payment order mismatch"}, status=400)
+        if int(payment.get('amount', 0)) != settings.REGISTRATION_FEE_PAISE:
+            return JsonResponse({"success": False, "message": "Payment amount mismatch"}, status=400)
+        if payment.get('currency', 'INR') != 'INR':
+            return JsonResponse({"success": False, "message": "Payment currency mismatch"}, status=400)
+
+        registration_user_id = request.session.get("registration_user_id")
+        if registration_user_id:
+            temp_user = get_object_or_404(TemporaryUser, id=registration_user_id)
+            if payment.get('email', '').lower() != temp_user.email.lower():
+                return JsonResponse({"success": False, "message": "Payment user mismatch"}, status=400)
+        else:
+            temp_user = get_object_or_404(TemporaryUser, email=payment.get('email'))
+
+        user = User.objects.create_user(
+            username=temp_user.name,
+            password=temp_user.mobile,
+            email=temp_user.email,
+            usertype='centre',
+        )
+        temp_user.user = user
+        temp_user.payment = True
+        temp_user.save()
+
+        username = generate_unique_username(temp_user.id)
+        user.username = username
+        user.save()
+
+        user_reg_district = RegistrationDistrict.objects.filter(
+            district_name=temp_user.district
+        ).first()
+        if user_reg_district is None:
+            try:
+                user_reg_district = RegistrationDistrict.objects.get(
+                    district_id=int(temp_user.district)
+                )
+            except (RegistrationDistrict.DoesNotExist, TypeError, ValueError):
+                return JsonResponse({"success": False, "message": "Registration district not found"}, status=400)
+
+        form_data = {
+            'name': username,
+            'mobile': temp_user.mobile,
+            'email': temp_user.email,
+            'another_name': temp_user.another_name,
+            'state': temp_user.state,
+            'district': user_reg_district,
+            'panchayat': temp_user.panchayat,
+            'ward_number': temp_user.ward_number,
+            'gender': temp_user.gender,
+            'aadhaar_number': temp_user.aadhaar_number,
+            'cheque_passbook': temp_user.cheque_passbook,
+            'date_of_birth': temp_user.date_of_birth,
+            'address': temp_user.address,
+            'photo': temp_user.photo,
+        }
+        form = UserRegistrationForm(form_data)
+        if not form.is_valid():
+            return JsonResponse({"success": False, "message": f"Form errors: {form.errors}"}, status=400)
+
+        user_registration = form.save(commit=False)
+        user_registration.user = user
+        user_registration.is_paid = True
+        user_registration.save()
+        Payment.objects.create(
+            user_registration=user_registration,
+            amount=float(settings.REGISTRATION_FEE),
+            provider_order_id=razorpay_order_id,
+            status=PaymentStatus.SUCCESS,
+            payment_id=payment_id,
+            signature_id=razorpay_signature,
+            is_certificate_payment=False,
+        )
         try:
-            payment = razorpay_client.payment.fetch(payment_id)
-            if payment['status'] == 'captured':
-                user_email = payment['email']
-                temp_user = TemporaryUser.objects.get(email=user_email)
-                temp_user.payment = True
-                temp_user.save()
-
-                try:
-                    user = User.objects.create_user(username=temp_user.name, password=temp_user.mobile, email=temp_user.email, usertype='centre')
-                    temp_user.user = user
-                    temp_user.save()
-
-                    username = generate_unique_username(temp_user.id)
-
-                    user.username = username
-                    user.save()
-                    tec_email_send(temp_user)
-
-                    user_reg_district = get_object_or_404(RegistrationDistrict, district_id=temp_user.district)
-
-                    try:
-                        form_data = {
-                        'name': username,
-                        'mobile': temp_user.mobile,
-                        'email': temp_user.email,
-                        'another_name': temp_user.another_name,
-                        'state': temp_user.state,
-                        'district': user_reg_district,
-                        'panchayat': temp_user.panchayat,
-                        'ward_number': temp_user.ward_number,
-                        'gender': temp_user.gender,
-                        'aadhaar_number': temp_user.aadhaar_number,
-                        'cheque_passbook': temp_user.cheque_passbook,
-                        'date_of_birth': temp_user.date_of_birth,
-                        'address': temp_user.address,
-                        'photo': temp_user.photo,
-                        }
-                        form = UserRegistrationForm(form_data)
-                    
-                        if form.is_valid():
-                            user_registration = form.save(commit=False)
-                            user_registration.user = user
-                            user_registration.is_paid = True  # Setting is_paid manually
-                            user_registration.save()
-                            messages.success(request, "User registration successful.")
-                        else:
-                            messages.error(request, f"Form errors: {form.errors}")
-                    
-                    except Exception as e:
-                        messages.error(request, f"Error creating user: {e}")
-                except Exception as e:
-                    print(e)
-                return JsonResponse({"success": True, "message": "Payment Successful", "redirect_url": "/exam/userlogin/"})
-            else:
-                return JsonResponse({"success": False, "message": "Payment Failed"})
-        except razorpay.errors.SignatureVerificationError:
-            return JsonResponse({"success": False, "message": "Signature Verification Failed"})
-    return JsonResponse({"success": False, "message": "Invalid request"})
+            tec_email_send(temp_user)
+        except Exception:
+            logger.exception("Registration welcome email could not be sent")
+        messages.success(request, "User registration successful.")
+        request.session.pop("registration_user_id", None)
+        return JsonResponse({
+            "success": True,
+            "message": "Payment Successful",
+            "redirect_url": reverse("exam:entrepreneur_userlogin"),
+            "receipt": {
+                "order_id": razorpay_order_id,
+                "amount": f"{settings.REGISTRATION_FEE:.2f}",
+                "currency": "INR",
+            },
+        })
+    except razorpay.errors.SignatureVerificationError:
+        return JsonResponse({"success": False, "message": "Signature Verification Failed"}, status=400)
+    except (KeyError, TypeError, ValueError) as exc:
+        logger.exception("Registration payment processing failed: %s", exc)
+        return JsonResponse({"success": False, "message": "Payment processing failed"}, status=400)
 
 
 

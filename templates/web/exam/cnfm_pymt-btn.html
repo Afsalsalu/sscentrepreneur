@@ -176,6 +176,7 @@
 >
   <div class="container">
     <div class="py-5"></div>
+    <p style="text-align: center; font-size: 1.1rem;">Registration fee: <strong>₹{{ registration_fee|floatformat:2 }}</strong></p>
 
 
     <div style="display: flex; justify-content: center; gap: 10px;">
@@ -204,6 +205,8 @@
 
 
 <script type="text/javascript">
+const createPaymentOrderUrl = "{% url 'exam:create_payment_order' %}";
+const paymentSuccessUrl = "{% url 'exam:payment_success' %}";
 //   var options = {
 //       "key": "{{ razorpay_key_id }}",  
 //       "amount": "{{ amount }}",  // Amount in paise (1000 represents ₹10)
@@ -254,7 +257,7 @@
 //       }
 //   };
 document.getElementById("rzp-button").addEventListener('click', function () {
-  fetch('/exam/create_payment_order/', {
+  fetch(createPaymentOrderUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -275,7 +278,7 @@ document.getElementById("rzp-button").addEventListener('click', function () {
       "order_id": data.razorpay_order_id,
       "name": "Payment",
       "handler": function (response) {
-        fetch('/exam/payment_success/', {
+        fetch(paymentSuccessUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -283,7 +286,8 @@ document.getElementById("rzp-button").addEventListener('click', function () {
           },
           body: JSON.stringify({
             payment_id: response.razorpay_payment_id,
-            razorpay_order_id: data.razorpay_order_id
+            razorpay_order_id: data.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature
           })
         })
         .then(res => res.json())
