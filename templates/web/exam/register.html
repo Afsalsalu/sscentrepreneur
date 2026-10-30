@@ -1038,6 +1038,21 @@
             <span>{{ error }}</span>
           </div>
         {% endif %}
+        {% if form.errors %}
+          <div class="server-error error" role="alert">
+            <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+            <ul>
+              {% for field in form %}
+                {% for field_error in field.errors %}
+                  <li>{{ field.label }}: {{ field_error }}</li>
+                {% endfor %}
+              {% endfor %}
+              {% for field_error in form.non_field_errors %}
+                <li>{{ field_error }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
 
         <div class="registration-intro">
           <div class="registration-eyebrow">SSC SERVICE CENTRE REGISTRATION</div>
@@ -1078,7 +1093,7 @@
           </li>
         </ol>
 
-        <form method="post" enctype="multipart/form-data" action="{% url 'exam:temporary_user' %}">
+        <form id="registration-form" method="post" enctype="multipart/form-data" action="{% url 'exam:entrepreneur_register' %}" data-initial-step="{{ registration_step|default:1 }}">
           {% csrf_token %}
 
           <section class="form-section" data-wizard-step="1" aria-labelledby="personal-details-heading">
@@ -1096,7 +1111,7 @@
                   <label for="">Name (As per govt. ID Proof) <span class="labal-star">*</span></label>
                   <div class="control-frame">
                     <span class="field-icon" aria-hidden="true"><i class="fa fa-user"></i></span>
-                    <input type="text" id="name" class="form-group" name="name" placeholder="Name" required>
+                    <input type="text" id="name" class="form-group" name="name" placeholder="Name" value="{{ form.name.value|default:'' }}" required>
                   </div>
                 </div>
               </div>
@@ -1106,7 +1121,7 @@
                   <label for="">Father's/Mother's/Spouse's Name <span class="labal-star">*</span></label>
                   <div class="control-frame">
                     <span class="field-icon" aria-hidden="true"><i class="fa fa-users"></i></span>
-                    <input type="text" id="another_name" class="form-group" name="another_name" placeholder="Father's/Mother's/Spouse's Name" required>
+                    <input type="text" id="another_name" class="form-group" name="another_name" placeholder="Father's/Mother's/Spouse's Name" value="{{ form.another_name.value|default:'' }}" required>
                   </div>
                 </div>
               </div>
@@ -1118,9 +1133,9 @@
                     <span class="field-icon" aria-hidden="true"><i class="fa fa-venus-mars"></i></span>
                     <select id="gender" name="gender" required>
                       <option value="">Select Gender</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="transgender">Transgender</option>
+                      <option value="male"{% if form.gender.value == 'male' %} selected{% endif %}>Male</option>
+                      <option value="female"{% if form.gender.value == 'female' %} selected{% endif %}>Female</option>
+                      <option value="transgender"{% if form.gender.value == 'transgender' %} selected{% endif %}>Transgender</option>
                     </select>
                   </div>
                 </div>
@@ -1131,7 +1146,7 @@
                   <label for="">D.O.B (As per govt. ID Proof) <span class="labal-star">*</span></label>
                   <div class="control-frame">
                     <span class="field-icon" aria-hidden="true"><i class="fa fa-calendar"></i></span>
-                    <input type="date" id="date_of_birth" class="form-group" name="date_of_birth" required>
+                    <input type="date" id="date_of_birth" class="form-group" name="date_of_birth" value="{{ form.date_of_birth.value|default:'' }}" required>
                   </div>
                 </div>
               </div>
@@ -1141,7 +1156,7 @@
                   <label for="">Aadhar Number<span class="labal-star">*</span></label>
                   <div class="control-frame">
                     <span class="field-icon" aria-hidden="true"><i class="fa fa-id-card"></i></span>
-                    <input type="text" id="aadhaar_number" minlength="12" maxlength="12" oninput="validateAadharNumber(event)" class="form-group" name="aadhaar_number" placeholder="Aadhar Number" required>
+                    <input type="text" id="aadhaar_number" minlength="12" maxlength="12" oninput="validateAadharNumber(event)" class="form-group" name="aadhaar_number" placeholder="Aadhar Number" value="{{ form.aadhaar_number.value|default:'' }}" required>
                   </div>
                   <span id="validate-error-aadhaar" style="display:none; color:red; font-size: 12px;">Aadhaar Number must be exactly 12 digits.</span>
                 </div>
@@ -1170,7 +1185,7 @@
                   <label for="">Email <span class="labal-star">*</span></label>
                   <div class="control-frame">
                     <span class="field-icon" aria-hidden="true"><i class="fa fa-envelope"></i></span>
-                    <input type="email" id="email" class="form-group" name="email" placeholder="Email Address" required>
+                    <input type="email" id="email" class="form-group" name="email" placeholder="Email Address" value="{{ form.email.value|default:'' }}" required>
                   </div>
                 </div>
               </div>
@@ -1180,7 +1195,7 @@
                   <label for="">Mobile <span class="labal-star">*</span></label>
                   <div class="control-frame">
                     <span class="field-icon" aria-hidden="true"><i class="fa fa-phone"></i></span>
-                    <input type="text" id="mobile" minlength="10" maxlength="10" oninput="validateMobileNumber(event)" class="form-group" name="mobile" placeholder="Mobile Number" required>
+                    <input type="text" id="mobile" minlength="10" maxlength="10" oninput="validateMobileNumber(event)" class="form-group" name="mobile" placeholder="Mobile Number" value="{{ form.mobile.value|default:'' }}" required>
                   </div>
                   <span id="validate-error-mobile" style="display:none; color:red; font-size: 12px;">Mobile Number must be exactly 10 digits.</span>
                 </div>
@@ -1207,7 +1222,7 @@
                     <select name="state" id="state" required>
                       <option value="">Select State</option>
                       {% for state in states %}
-                        <option value="{{ state.state_id }}">{{ state.name }}</option>
+                        <option value="{{ state.state_id }}"{% if selected_state|stringformat:"s" == state.state_id|stringformat:"s" %} selected{% endif %}>{{ state.name }}</option>
                       {% endfor %}
                     </select>
                   </div>
@@ -1222,14 +1237,14 @@
                     <select name="district" id="district" required>
                       <option value="">Select District</option>
                       {% for district in districts %}
-                        <option value="{{ district.district_id }}">{{ district.district_name }}</option>
+                        <option value="{{ district.district_id }}"{% if selected_district|stringformat:"s" == district.district_id|stringformat:"s" %} selected{% endif %}>{{ district.district_name }}</option>
                       {% endfor %}
                     </select>
                   </div>
                 </div>
               </div>
 
-              <input type="hidden" id="district_selected" name="district_selected">
+              <input type="hidden" id="district_selected" name="district_selected" value="{{ selected_district|default:'' }}">
 
               <div class="legacy-field">
                 <div class="col-md-6 form-group">
@@ -1237,9 +1252,9 @@
                   <div class="control-frame">
                     <span class="field-icon" aria-hidden="true"><i class="fa fa-building"></i></span>
                     <select id="local_body" name="local_body" required>
-                      <option value="Panchayath">Panchayath</option>
-                      <option value="Corporation">Corporation</option>
-                      <option value="Muncipality">Muncipality</option>
+                      <option value="Panchayath"{% if selected_local_body == 'Panchayath' %} selected{% endif %}>Panchayath</option>
+                      <option value="Corporation"{% if selected_local_body == 'Corporation' %} selected{% endif %}>Corporation</option>
+                      <option value="Muncipality"{% if selected_local_body == 'Muncipality' %} selected{% endif %}>Muncipality</option>
                     </select>
                   </div>
                 </div>
@@ -1253,7 +1268,7 @@
                     <select id="panchayat" name="panchayat" required>
                       <option value="">Select</option>
                       {% for panchayat in panchayats %}
-                        <option value="{{ panchayat.panchayat_id }}">{{ panchayat.name }}</option>
+                        <option value="{{ panchayat.panchayat_id }}"{% if selected_panchayat|stringformat:"s" == panchayat.panchayat_id|stringformat:"s" %} selected{% endif %}>{{ panchayat.name }}</option>
                       {% endfor %}
                     </select>
                   </div>
@@ -1265,7 +1280,7 @@
                   <label for="ward_number">Ward Number <span class="labal-star">*</span></label>
                   <div class="control-frame">
                     <span class="field-icon" aria-hidden="true"><i class="fa fa-hashtag"></i></span>
-                    <input type="text" class="form-group" id="ward_number" name="ward_number" placeholder="Ward Number" required>
+                    <input type="text" class="form-group" id="ward_number" name="ward_number" placeholder="Ward Number" value="{{ form.ward_number.value|default:'' }}" required>
                   </div>
                 </div>
               </div>
@@ -1275,7 +1290,7 @@
                   <label for="">Full Address <span class="labal-star">*</span></label>
                   <div class="control-frame">
                     <span class="field-icon" aria-hidden="true"><i class="fa fa-home"></i></span>
-                    <input type="text" class="form-group" id="address" name="address" placeholder="Address" required>
+                    <input type="text" class="form-group" id="address" name="address" placeholder="Address" value="{{ form.address.value|default:'' }}" required>
                   </div>
                 </div>
               </div>
@@ -1318,7 +1333,7 @@
                     <label for="latitude">Latitude and longitude<span class="labal-star">*</span></label>
                     <div class="control-frame">
                       <span class="field-icon" aria-hidden="true"><i class="fa fa-location-arrow"></i></span>
-                      <input type="text" class="form-control" id="latitude" placeholder="Select a location on the map" name="latitude" required readonly aria-describedby="location-picker-status location-picker-error">
+                      <input type="text" class="form-control" id="latitude" placeholder="Select a location on the map" name="latitude" value="{{ request.POST.latitude|default:'' }}" required readonly aria-describedby="location-picker-status location-picker-error">
                     </div>
                     <span class="field-help">This field updates automatically when you click the map, drag the marker, or choose a search result.</span>
                   </div>
@@ -1527,7 +1542,7 @@ function validateAadharNumber(event) {
 (function () {
   "use strict";
 
-  var form = document.querySelector('form[action*="temporary_user"]');
+  var form = document.getElementById("registration-form");
   if (!form) {
     return;
   }
@@ -1536,7 +1551,7 @@ function validateAadharNumber(event) {
   var stepItems = Array.prototype.slice.call(document.querySelectorAll(".registration-step"));
   var stepButtons = Array.prototype.slice.call(document.querySelectorAll(".registration-step__button"));
   var reviewSummary = document.getElementById("review-summary");
-  var currentStep = 1;
+  var currentStep = Number(form.getAttribute("data-initial-step")) || 1;
   var completedSteps = {};
 
   function panelStep(panel) {
@@ -1868,7 +1883,7 @@ function validateAadharNumber(event) {
     }
   });
 
-  showStep(1);
+  showStep(currentStep);
 })();
 </script>
 

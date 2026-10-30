@@ -1,7 +1,7 @@
 (function () {
     "use strict";
 
-    var form = document.querySelector('form[action*="temporary_user"]') || document.querySelector("form");
+    var form = document.getElementById("registration-form") || document.querySelector("form");
     var coordinateInput = document.getElementById("latitude");
     var mapElement = document.getElementById("location-map");
     var statusElement = document.getElementById("location-picker-status");

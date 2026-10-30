@@ -18,7 +18,7 @@ from django.contrib.auth import logout
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 # from easy_pdf.views import PDFView
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -180,10 +180,10 @@ class UserRegistrationView(View):
         )
 
     def post(self, request):
-        states = RegistrationState.objects.all()
-        selected_state = request.POST.get('state')
-        districts = RegistrationDistrict.objects.filter(state=selected_state) if selected_state else []
-        form = UserRegistrationForm(request.POST, request.FILES)
+        return _process_registration_submission(request)
+
+    """
+        # The previous inline POST body was replaced by the canonical submission helper.
 
 
 
@@ -262,6 +262,323 @@ class UserRegistrationView(View):
 
 
         # here ......///////////
+    """
+
+
+_REGISTRATION_FIELD_STEPS = {
+    "name": 1,
+    "another_name": 1,
+    "gender": 1,
+    "date_of_birth": 1,
+    "aadhaar_number": 1,
+    "email": 2,
+    "mobile": 2,
+    "state": 2,
+    "district": 2,
+    "local_body": 2,
+    "panchayat": 2,
+    "ward_number": 2,
+    "address": 2,
+    "latitude": 3,
+    "photo": 4,
+    "cheque_passbook": 4,
+}
+
+
+def _registration_page_context(request, form, error_step=1, error=None):
+    selected_state = request.POST.get("state") or None
+    selected_district = request.POST.get("district") or None
+    selected_panchayat = request.POST.get("panchayat") or None
+    selected_local_body = request.POST.get("local_body") or "Panchayath"
+    districts = (
+        RegistrationDistrict.objects.filter(state=selected_state)
+        if selected_state
+        else RegistrationDistrict.objects.all()
+    )
+    context = {
+        "form": form,
+        "states": RegistrationState.objects.all(),
+        "districts": districts,
+        "panchayats": RegistrationPanchayat.objects.all(),
+        "selected_state": selected_state,
+        "selected_district": selected_district,
+        "selected_panchayat": selected_panchayat,
+        "selected_local_body": selected_local_body,
+        "registration_step": error_step,
+    }
+    if error:
+        context["error"] = error
+    return context
+
+
+def _registration_error_step(form, fallback=1):
+    steps = [
+        _REGISTRATION_FIELD_STEPS.get(field, fallback)
+        for field in form.errors
+        if field != "__all__"
+    ]
+    return min(steps) if steps else fallback
+
+
+def _add_registration_error(form, message, step, field=None):
+    if field and field in form.fields:
+        form.add_error(field, message)
+    else:
+        form.add_error(None, message)
+    return min(step, _registration_error_step(form, step))
+
+
+def _parse_registration_coordinates(value):
+    try:
+        latitude, longitude = [float(part.strip()) for part in value.split(",")]
+    except (AttributeError, TypeError, ValueError):
+        return None
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return None
+    return latitude, longitude
+
+
+def _registration_location_conflict(latitude, longitude, local_body):
+    for user in TemporaryUser.objects.filter(main_exam_passed=True):
+        if user.lattitude is None or user.longitude is None:
+            continue
+        distance = haversine(latitude, longitude, user.lattitude, user.longitude)
+        limit = 0.5 if local_body == "Corporation" and user.local_body == "Corporation" else 1
+        if distance <= limit:
+            return f"Another user has already registered in this location (#{user.id})."
+
+    for user in CentreUserAccount.objects.filter(is_approved=True):
+        if not user.location:
+            continue
+        try:
+            user_latitude, user_longitude = extract_coordinates(user.location, user.id)
+        except Exception:
+            continue
+        if user_latitude is None or user_longitude is None:
+            continue
+        distance = haversine(latitude, longitude, user_latitude, user_longitude)
+        limit = 0.5 if local_body == "Corporation" and user.rural_areas == "corporation" else 1
+        if distance <= limit:
+            return "Another user has already registered in this location. Please try again at another location."
+    return None
+
+
+def _cached_registration_order(request, user_id):
+    order_id = request.session.get("registration_order_id")
+    order_user_id = request.session.get("registration_order_user_id")
+    order_amount = request.session.get("registration_order_amount")
+    if (
+        order_id
+        and str(order_user_id or "") == str(user_id or "")
+        and int(order_amount or 0) == settings.REGISTRATION_FEE_PAISE
+    ):
+        return {
+            "id": order_id,
+            "amount": settings.REGISTRATION_FEE_PAISE,
+            "receipt": request.session.get("registration_order_receipt", ""),
+        }
+    return None
+
+
+def _create_registration_order(request, temporary_user=None):
+    user_id = temporary_user.id if temporary_user else request.session.get("registration_user_id")
+    cached_order = _cached_registration_order(request, user_id)
+    if cached_order:
+        return cached_order
+
+    receipt = f"registration_{user_id or uuid.uuid4().hex[:12]}"
+    order_data = {
+        "amount": settings.REGISTRATION_FEE_PAISE,
+        "currency": "INR",
+        "receipt": receipt,
+        "payment_capture": 1,
+    }
+    razorpay_client = razorpay.Client(
+        auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+    )
+    order = razorpay_client.order.create(data=order_data)
+    order_context = {
+        "id": order["id"],
+        "amount": settings.REGISTRATION_FEE_PAISE,
+        "receipt": receipt,
+    }
+    request.session["registration_order_id"] = order_context["id"]
+    request.session["registration_order_user_id"] = user_id
+    request.session["registration_order_amount"] = order_context["amount"]
+    request.session["registration_order_receipt"] = receipt
+    request.session.save()
+    return order_context
+
+
+def _process_registration_submission(request):
+    form = UserRegistrationForm(request.POST, request.FILES)
+    error_step = 1
+    selected_state = request.POST.get("state")
+    state = district = panchayat = None
+    temporary_user = None
+
+    registration_user_id = request.session.get("registration_user_id")
+    if registration_user_id:
+        temporary_user = TemporaryUser.objects.filter(
+            id=registration_user_id, payment=False
+        ).first()
+
+    # A retried submission in the same session updates the pending record rather
+    # than creating a second temporary registration.
+    if temporary_user is None and request.POST.get("mobile"):
+        temporary_user = TemporaryUser.objects.filter(
+            mobile=request.POST.get("mobile"), payment=False
+        ).first()
+
+    required_fields = (
+        "name", "another_name", "gender", "date_of_birth", "aadhaar_number",
+        "email", "mobile", "state", "district", "local_body", "panchayat",
+        "ward_number", "address", "latitude",
+    )
+    for field in required_fields:
+        if not str(request.POST.get(field) or "").strip():
+            error_step = _add_registration_error(
+                form, "This field is required.", _REGISTRATION_FIELD_STEPS[field], field
+            )
+
+    for field in ("photo", "cheque_passbook"):
+        if not request.FILES.get(field) and not getattr(temporary_user, field, None):
+            error_step = _add_registration_error(
+                form, "Please upload this required document.", 4, field
+            )
+
+    local_body = request.POST.get("local_body")
+    if local_body not in {"Panchayath", "Muncipality", "Corporation"}:
+        error_step = _add_registration_error(
+            form, "Please select a valid local body.", 2, "local_body"
+        )
+
+    try:
+        state = RegistrationState.objects.get(state_id=request.POST.get("state"))
+    except (RegistrationState.DoesNotExist, TypeError, ValueError):
+        error_step = _add_registration_error(form, "Please select a valid state.", 2, "state")
+
+    if state:
+        try:
+            district = RegistrationDistrict.objects.get(
+                district_id=request.POST.get("district"), state=state
+            )
+        except (RegistrationDistrict.DoesNotExist, TypeError, ValueError):
+            error_step = _add_registration_error(
+                form, "Please select a valid district.", 2, "district"
+            )
+
+    if district:
+        panchayat = RegistrationPanchayat.objects.filter(
+            panchayat_id=request.POST.get("panchayat"), district=district
+        ).first()
+        if panchayat is None:
+            error_step = _add_registration_error(
+                form, "Please select a valid panchayat or local body.", 2, "panchayat"
+            )
+
+    coordinates = _parse_registration_coordinates(request.POST.get("latitude"))
+    if coordinates is None:
+        error_step = _add_registration_error(
+            form, "Please select a valid location on the map.", 3, "latitude"
+        )
+
+    form_is_valid = form.is_valid()
+    if not form_is_valid:
+        error_step = min(error_step, _registration_error_step(form, error_step))
+
+    if form_is_valid and state and district and panchayat and coordinates:
+        email = form.cleaned_data["email"]
+        mobile = form.cleaned_data["mobile"]
+        aadhaar_number = form.cleaned_data["aadhaar_number"]
+
+        if TemporaryUser.objects.filter(payment=True, email=email).exists():
+            error_step = _add_registration_error(
+                form, "Another user has already registered with this email.", 2, "email"
+            )
+        elif TemporaryUser.objects.filter(payment=True, mobile=mobile).exists():
+            error_step = _add_registration_error(
+                form, "Another user has already registered with this mobile number.", 2, "mobile"
+            )
+        elif TemporaryUser.objects.filter(payment=True, aadhaar_number=aadhaar_number).exists():
+            error_step = _add_registration_error(
+                form, "Another user has already registered with this Aadhaar number.", 1, "aadhaar_number"
+            )
+        else:
+            same_ward_user = CentreUserAccount.objects.filter(
+                is_approved=True,
+                rural_areas=local_body,
+                state=state.name,
+                district=district.district_name,
+                ward_number=form.cleaned_data["ward_number"],
+            ).first()
+            if same_ward_user:
+                error_step = _add_registration_error(
+                    form,
+                    "Another user has already registered in this location. Please try again at another location.",
+                    2,
+                )
+            else:
+                location_error = _registration_location_conflict(
+                    coordinates[0], coordinates[1], local_body
+                )
+                if location_error:
+                    error_step = _add_registration_error(form, location_error, 3)
+
+    if form.errors:
+        return render_registration(
+            request,
+            _registration_page_context(request, form, error_step),
+        )
+
+    cleaned_data = form.cleaned_data
+    registration_data = {
+        "name": cleaned_data["name"],
+        "email": cleaned_data["email"],
+        "mobile": cleaned_data["mobile"],
+        "another_name": cleaned_data.get("another_name"),
+        "state": state.name,
+        "district": district.district_name,
+        "local_body": local_body,
+        "panchayat": panchayat.name,
+        "ward_number": cleaned_data["ward_number"],
+        "gender": cleaned_data["gender"],
+        "aadhaar_number": cleaned_data["aadhaar_number"],
+        "date_of_birth": cleaned_data.get("date_of_birth"),
+        "address": cleaned_data["address"],
+        "lattitude": coordinates[0],
+        "longitude": coordinates[1],
+    }
+    for file_field in ("photo", "cheque_passbook"):
+        uploaded_file = request.FILES.get(file_field)
+        if uploaded_file:
+            registration_data[file_field] = uploaded_file
+
+    try:
+        with transaction.atomic():
+            if temporary_user is None:
+                temporary_user = TemporaryUser.objects.create(**registration_data)
+            else:
+                for field, value in registration_data.items():
+                    setattr(temporary_user, field, value)
+                temporary_user.save()
+        request.session["registration_user_id"] = temporary_user.id
+        order = _create_registration_order(request, temporary_user)
+    except Exception:
+        logger.exception("Registration submission could not be prepared for payment")
+        form.add_error(None, "We could not prepare your payment. Please try again.")
+        return render_registration(
+            request,
+            _registration_page_context(request, form, 5),
+        )
+
+    return render(request, "web/exam/cnfm_pymt-btn.html", {
+        "user": temporary_user,
+        "amount": order["amount"],
+        "registration_fee": settings.REGISTRATION_FEE,
+        "razorpay_order_id": order["id"],
+        "razorpay_key_id": settings.RAZORPAY_KEY_ID,
+    })
 
 
 def get_districts(request):
@@ -1297,6 +1614,11 @@ def sbi(request):
     return JsonResponse(data)
 
 def temporary_user(request):
+    # Keep the legacy URL working while the registration page uses one canonical flow.
+    if request.method == "POST":
+        return _process_registration_submission(request)
+    return UserRegistrationView().get(request)
+
     states = RegistrationState.objects.all()
     selected_state = request.POST.get('state')
     districts = RegistrationDistrict.objects.filter(state=selected_state) if selected_state else []
@@ -1460,26 +1782,19 @@ def create_payment_order(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-    amount = settings.REGISTRATION_FEE_PAISE
-    currency = 'INR'
     registration_user_id = request.session.get("registration_user_id")
-    receipt = f"registration_{registration_user_id or uuid.uuid4().hex[:12]}"
-    order_data = {
-        'amount': amount,
-        'currency': currency,
-        'receipt': receipt,
-        'payment_capture': 1,
-    }
-
-    razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-    order = razorpay_client.order.create(data=order_data)
-    razorpay_order_id = order['id']
+    temporary_user = None
+    if registration_user_id:
+        temporary_user = get_object_or_404(
+            TemporaryUser, id=registration_user_id, payment=False
+        )
+    order = _create_registration_order(request, temporary_user)
 
     return JsonResponse({
-        'razorpay_order_id': razorpay_order_id,
-        'amount': amount,
+        'razorpay_order_id': order['id'],
+        'amount': order['amount'],
         'registration_fee': f"{settings.REGISTRATION_FEE:.2f}",
-        'receipt': receipt,
+        'receipt': order['receipt'],
     })
 
 def payment_success(request):
@@ -1510,6 +1825,9 @@ def payment_success(request):
         if payment.get('status') != 'captured':
             return JsonResponse({"success": False, "message": "Payment Failed"}, status=400)
         if payment.get('order_id') != razorpay_order_id:
+            return JsonResponse({"success": False, "message": "Payment order mismatch"}, status=400)
+        expected_order_id = request.session.get("registration_order_id")
+        if expected_order_id and expected_order_id != razorpay_order_id:
             return JsonResponse({"success": False, "message": "Payment order mismatch"}, status=400)
         if int(payment.get('amount', 0)) != settings.REGISTRATION_FEE_PAISE:
             return JsonResponse({"success": False, "message": "Payment amount mismatch"}, status=400)
@@ -1588,6 +1906,10 @@ def payment_success(request):
             logger.exception("Registration welcome email could not be sent")
         messages.success(request, "User registration successful.")
         request.session.pop("registration_user_id", None)
+        request.session.pop("registration_order_id", None)
+        request.session.pop("registration_order_user_id", None)
+        request.session.pop("registration_order_amount", None)
+        request.session.pop("registration_order_receipt", None)
         return JsonResponse({
             "success": True,
             "message": "Payment Successful",

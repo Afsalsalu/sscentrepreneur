@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.urls import get_script_prefix, resolve, reverse, set_script_prefix
 
@@ -15,6 +16,7 @@ from .models import MainExamOption, MainExamProgress, MainExamQuestion, Payment
 from .models.user_registration import (
     DocumentValidation,
     RegistrationDistrict,
+    RegistrationPanchayat,
     RegistrationState,
     TemporaryUser,
 )
@@ -309,3 +311,134 @@ class RegistrationPaymentAmountTests(TestCase):
         self.assertEqual(response.json()["message"], "Payment amount mismatch")
         self.assertFalse(Payment.objects.exists())
         self.assertFalse(TemporaryUser.objects.get(pk=temp_user.pk).payment)
+
+
+class RegistrationSubmissionFlowTests(TestCase):
+    TEST_IMAGE = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+        "YAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+    )
+
+    def setUp(self):
+        self.amount_settings = override_settings(
+            REGISTRATION_FEE=Decimal("5.00"),
+            REGISTRATION_FEE_PAISE=500,
+        )
+        self.amount_settings.enable()
+        self.addCleanup(self.amount_settings.disable)
+
+        self.media_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.media_directory.cleanup)
+        self.media_settings = override_settings(MEDIA_ROOT=self.media_directory.name)
+        self.media_settings.enable()
+        self.addCleanup(self.media_settings.disable)
+
+        self.state = RegistrationState.objects.create(name="Kerala")
+        self.district = RegistrationDistrict.objects.create(
+            state=self.state,
+            district_name="Test District",
+        )
+        self.panchayat = RegistrationPanchayat.objects.create(
+            state=self.state,
+            district=self.district,
+            local_body="Panchayath",
+            name="Test Panchayat",
+        )
+
+    def registration_payload(self, latitude="10.000000,76.000000"):
+        return {
+            "name": "Final Centre",
+            "another_name": "Test Parent",
+            "gender": "male",
+            "date_of_birth": "1990-01-01",
+            "aadhaar_number": "123456789012",
+            "email": "final-centre@example.com",
+            "mobile": "9000000009",
+            "state": str(self.state.pk),
+            "district": str(self.district.pk),
+            "local_body": "Panchayath",
+            "panchayat": str(self.panchayat.pk),
+            "ward_number": "1",
+            "address": "Test address",
+            "latitude": latitude,
+            "photo": SimpleUploadedFile(
+                "photo.png", self.TEST_IMAGE, content_type="image/png"
+            ),
+            "cheque_passbook": SimpleUploadedFile(
+                "cheque.png", self.TEST_IMAGE, content_type="image/png"
+            ),
+        }
+
+    @patch("exam.views.razorpay.Client")
+    def test_valid_final_submission_reaches_payment_page_at_test_amount(self, client_class):
+        client_class.return_value.order.create.return_value = {
+            "id": "order_final_5"
+        }
+
+        response = self.client.post(
+            reverse("exam:entrepreneur_register"), self.registration_payload()
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'initialOrderId = "order_final_5"')
+        self.assertContains(response, "5.00")
+        self.assertEqual(TemporaryUser.objects.count(), 1)
+        saved_user = TemporaryUser.objects.get()
+        self.assertTrue(saved_user.photo.name)
+        self.assertTrue(saved_user.cheque_passbook.name)
+        self.assertEqual(
+            client_class.return_value.order.create.call_args.kwargs["data"]["amount"],
+            500,
+        )
+        order_response = self.client.post(reverse("exam:create_payment_order"))
+        self.assertEqual(order_response.status_code, 200)
+        self.assertEqual(order_response.json()["razorpay_order_id"], "order_final_5")
+        client_class.return_value.order.create.assert_called_once()
+
+    @patch("exam.views.razorpay.Client")
+    def test_invalid_final_submission_stays_on_location_step(self, client_class):
+        payload = self.registration_payload(latitude="")
+
+        response = self.client.post(
+            reverse("exam:entrepreneur_register"), payload
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-initial-step="3"')
+        self.assertContains(response, "Please select a valid location on the map.")
+        self.assertContains(response, "Final Centre")
+        self.assertEqual(TemporaryUser.objects.count(), 0)
+        client_class.return_value.order.create.assert_not_called()
+
+    @patch("exam.views.razorpay.Client")
+    def test_repeated_final_submission_reuses_temp_user_and_order(self, client_class):
+        client_class.return_value.order.create.return_value = {
+            "id": "order_final_5"
+        }
+        url = reverse("exam:entrepreneur_register")
+
+        first_response = self.client.post(url, self.registration_payload())
+        second_response = self.client.post(url, self.registration_payload())
+
+        self.assertEqual(first_response.status_code, 200)
+        self.assertEqual(second_response.status_code, 200)
+        self.assertEqual(TemporaryUser.objects.count(), 1)
+        client_class.return_value.order.create.assert_called_once()
+
+    def test_registration_urls_render_with_test_script_prefix(self):
+        previous_prefix = get_script_prefix()
+        set_script_prefix("/test/")
+        self.addCleanup(set_script_prefix, previous_prefix)
+
+        registration_url = reverse("exam:entrepreneur_register")
+        # The reverse proxy strips /test/ before Django receives the request.
+        response = self.client.get("/exam/register/")
+
+        self.assertEqual(registration_url, "/test/exam/register/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'action="{registration_url}"')
+
+    def test_registration_entry_points_do_not_return_server_error(self):
+        for route_name in ("exam:entrepreneur_register", "exam:temporary_user"):
+            with self.subTest(route_name=route_name):
+                self.assertEqual(self.client.get(reverse(route_name)).status_code, 200)
