@@ -1360,23 +1360,27 @@
             <div class="field-grid">
               <div class="legacy-field">
                 <div class="col-md-6 form-group{% if form.photo.errors %} has-error{% endif %}">
-                  <label for="">Upload Photo <span class="labal-star">*</span></label>
+                  <label for="photo">Upload Photo <span class="labal-star">*</span></label>
                   <div class="control-frame">
                     <span class="field-icon" aria-hidden="true"><i class="fa fa-camera"></i></span>
                     <input type="file" id="photo" class="form-group" accept="image/*" name="photo" required>
                   </div>
                   <span class="form-group" style="font-size: 12px;">upload the size below 80kb</span>
+                  <span id="photo-file-status" class="field-help" aria-live="polite">No file selected</span>
+                  <span id="photo-file-error" class="field-validation" role="alert" aria-live="polite" hidden></span>
                 </div>
               </div>
 
               <div class="legacy-field">
                 <div class="col-md-6 form-group{% if form.photo.errors %} has-error{% endif %}">
-                  <label for="">Cancelled Cheque Leaf / Pass Book Front Page <span class="labal-star">*</span></label>
+                  <label for="cheque_passbook">Cancelled Cheque Leaf / Pass Book Front Page <span class="labal-star">*</span></label>
                   <div class="control-frame">
                     <span class="field-icon" aria-hidden="true"><i class="fa fa-file-image-o"></i></span>
                     <input type="file" id="cheque_passbook" class="form-group" name="cheque_passbook" accept="image/*" required>
                   </div>
                   <span class="form-group" style="font-size: 12px;">upload the size below 80kb</span>
+                  <span id="cheque_passbook-file-status" class="field-help" aria-live="polite">No file selected</span>
+                  <span id="cheque_passbook-file-error" class="field-validation" role="alert" aria-live="polite" hidden></span>
                 </div>
               </div>
             </div>
@@ -1551,6 +1555,21 @@ function validateAadharNumber(event) {
   var stepItems = Array.prototype.slice.call(document.querySelectorAll(".registration-step"));
   var stepButtons = Array.prototype.slice.call(document.querySelectorAll(".registration-step__button"));
   var reviewSummary = document.getElementById("review-summary");
+  // Keep references to the original upload controls; wizard navigation never recreates them.
+  var fileInputs = {
+    photo: document.getElementById("photo"),
+    cheque_passbook: document.getElementById("cheque_passbook")
+  };
+  var fileStatuses = {
+    photo: document.getElementById("photo-file-status"),
+    cheque_passbook: document.getElementById("cheque_passbook-file-status")
+  };
+  var fileErrors = {
+    photo: document.getElementById("photo-file-error"),
+    cheque_passbook: document.getElementById("cheque_passbook-file-error")
+  };
+  var submitButton = document.getElementById("rzp-button");
+  var submitInProgress = false;
   var currentStep = Number(form.getAttribute("data-initial-step")) || 1;
   var completedSteps = {};
 
@@ -1608,12 +1627,77 @@ function validateAadharNumber(event) {
     return "Please complete the highlighted field before continuing.";
   }
 
+  function fileErrorMessage(id) {
+    if (id === "photo") {
+      return "Please select the applicant photo before continuing.";
+    }
+    if (id === "cheque_passbook") {
+      return "Please select the cancelled cheque or passbook image before continuing.";
+    }
+    return "Please select the required document before continuing.";
+  }
+
+  function updateFileStatus(id) {
+    var input = fileInputs[id];
+    var status = fileStatuses[id];
+    var file = input && input.files && input.files.length ? input.files[0] : null;
+    if (status) {
+      status.textContent = file && file.name ? file.name : "No file selected";
+    }
+    return file;
+  }
+
+  function clearFileError(id) {
+    var input = fileInputs[id];
+    var error = fileErrors[id];
+    if (input) {
+      input.setCustomValidity("");
+    }
+    if (error) {
+      error.textContent = "";
+      error.hidden = true;
+      error.style.display = "none";
+    }
+  }
+
+  function showFileError(id) {
+    var message = fileErrorMessage(id);
+    var input = fileInputs[id];
+    var error = fileErrors[id];
+    if (input) {
+      input.setCustomValidity(message);
+    }
+    if (error) {
+      error.textContent = message;
+      error.hidden = false;
+      error.style.display = "block";
+    }
+    updateFileStatus(id);
+  }
+
+  function hasSelectedFile(id) {
+    return Boolean(updateFileStatus(id));
+  }
+
+  function firstMissingFile() {
+    var fileIds = ["photo", "cheque_passbook"];
+    for (var index = 0; index < fileIds.length; index += 1) {
+      if (!hasSelectedFile(fileIds[index])) {
+        return fileInputs[fileIds[index]];
+      }
+    }
+    return null;
+  }
+
   function findInvalidControl(step) {
     var controls = controlsForStep(step);
     for (var index = 0; index < controls.length; index += 1) {
       var control = controls[index];
       if (control.id === "latitude" && !String(control.value || "").trim()) {
         control.setCustomValidity("Please select your location on the map before continuing.");
+        return control;
+      }
+      if (control.type === "file" && !hasSelectedFile(control.id)) {
         return control;
       }
       if (typeof control.checkValidity === "function" && !control.checkValidity()) {
@@ -1703,6 +1787,9 @@ function validateAadharNumber(event) {
       return true;
     }
 
+    if (invalidControl && invalidControl.type === "file") {
+      showFileError(invalidControl.id);
+    }
     setStepMessage(step, invalidMessage(invalidControl, step));
     if (focusInvalid) {
       showStep(step);
@@ -1738,11 +1825,11 @@ function validateAadharNumber(event) {
   }
 
   function fileValue(id) {
-    var element = document.getElementById(id);
-    if (!element || !element.files || !element.files.length) {
+    var file = updateFileStatus(id);
+    if (!file) {
       return "No file selected";
     }
-    return element.files[0].name || "Selected file";
+    return file.name || "Selected file";
   }
 
   function displayValue(value) {
@@ -1785,6 +1872,7 @@ function validateAadharNumber(event) {
       return;
     }
 
+    // This summary is outside the form; the original file inputs remain untouched.
     reviewSummary.innerHTML = [
       reviewGroup("Personal Details", [
         reviewItem("Name", rawValue("name")),
@@ -1861,7 +1949,47 @@ function validateAadharNumber(event) {
     }
   });
 
+  Object.keys(fileInputs).forEach(function (id) {
+    if (fileInputs[id]) {
+      fileInputs[id].addEventListener("change", function () {
+        updateFileStatus(id);
+        clearFileError(id);
+      });
+    }
+  });
+
+  if (submitButton) {
+    submitButton.addEventListener("click", function (event) {
+      if (currentStep !== 5) {
+        return;
+      }
+      var missingFile = firstMissingFile();
+      if (missingFile) {
+        event.preventDefault();
+        showFileError(missingFile.id);
+        showStep(4);
+        focusControl(missingFile);
+      }
+    });
+  }
+
+  // Required controls in hidden steps can trigger browser validation before submit fires.
+  form.addEventListener("invalid", function (event) {
+    var control = event.target;
+    if (currentStep === 5 && control && control.type === "file") {
+      event.preventDefault();
+      showFileError(control.id);
+      showStep(4);
+      focusControl(control);
+    }
+  }, true);
+
   form.addEventListener("submit", function (event) {
+    if (submitInProgress) {
+      event.preventDefault();
+      return;
+    }
+
     if (currentStep !== 5) {
       event.preventDefault();
       validateStep(currentStep, true);
@@ -1880,6 +2008,13 @@ function validateAadharNumber(event) {
 
     if (event.defaultPrevented) {
       showStep(3);
+      return;
+    }
+
+    submitInProgress = true;
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.setAttribute("aria-disabled", "true");
     }
   });
 

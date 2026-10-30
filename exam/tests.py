@@ -313,6 +313,53 @@ class RegistrationPaymentAmountTests(TestCase):
         self.assertFalse(TemporaryUser.objects.get(pk=temp_user.pk).payment)
 
 
+class RegistrationWizardJavaScriptTests(SimpleTestCase):
+    def setUp(self):
+        self.template = (
+            Path(settings.BASE_DIR) / "templates/web/exam/register.html"
+        ).read_text(encoding="utf-8")
+
+    def test_upload_controls_stay_in_one_original_multipart_form(self):
+        form_start = self.template.index('<form id="registration-form"')
+        form_end = self.template.index("</form>", form_start)
+
+        self.assertEqual(self.template.count('<form id="registration-form"'), 1)
+        self.assertIn('enctype="multipart/form-data"', self.template[form_start:form_end])
+        for input_id in ("photo", "cheque_passbook"):
+            input_position = self.template.index(f'id="{input_id}"')
+            self.assertGreater(input_position, form_start)
+            self.assertLess(input_position, form_end)
+
+    def test_review_uses_original_file_names_and_reports_missing_files(self):
+        self.assertIn('reviewItem("Photo", fileValue("photo"))', self.template)
+        self.assertIn(
+            'reviewItem("Cancelled Cheque / Passbook", fileValue("cheque_passbook"))',
+            self.template,
+        )
+        self.assertIn('id="photo-file-status"', self.template)
+        self.assertIn('id="cheque_passbook-file-status"', self.template)
+        self.assertIn("Please select the applicant photo before continuing.", self.template)
+        self.assertIn(
+            "Please select the cancelled cheque or passbook image before continuing.",
+            self.template,
+        )
+        self.assertIn("showStep(4);", self.template)
+
+    def test_wizard_does_not_recreate_uploads_and_guards_single_submit(self):
+        self.assertIn("var fileInputs =", self.template)
+        self.assertIn("wizard navigation never recreates them", self.template)
+        self.assertIn("var submitInProgress = false;", self.template)
+        self.assertIn("if (submitInProgress)", self.template)
+        self.assertNotIn("cloneNode", self.template)
+        self.assertNotIn("form.reset(", self.template)
+
+        show_step_start = self.template.index("function showStep(step)")
+        show_step_end = self.template.index("function validateStep(step", show_step_start)
+        show_step = self.template[show_step_start:show_step_end]
+        self.assertIn("panel.hidden = panelStep(panel) !== currentStep;", show_step)
+        self.assertNotIn("innerHTML", show_step)
+
+
 class RegistrationSubmissionFlowTests(TestCase):
     TEST_IMAGE = base64.b64decode(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
@@ -407,6 +454,22 @@ class RegistrationSubmissionFlowTests(TestCase):
         self.assertContains(response, 'data-initial-step="3"')
         self.assertContains(response, "Please select a valid location on the map.")
         self.assertContains(response, "Final Centre")
+        self.assertEqual(TemporaryUser.objects.count(), 0)
+        client_class.return_value.order.create.assert_not_called()
+
+    @patch("exam.views.razorpay.Client")
+    def test_missing_documents_stays_on_documents_step(self, client_class):
+        payload = self.registration_payload()
+        payload.pop("photo")
+        payload.pop("cheque_passbook")
+
+        response = self.client.post(
+            reverse("exam:entrepreneur_register"), payload
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-initial-step="4"')
+        self.assertContains(response, "Please upload this required document.")
         self.assertEqual(TemporaryUser.objects.count(), 0)
         client_class.return_value.order.create.assert_not_called()
 
