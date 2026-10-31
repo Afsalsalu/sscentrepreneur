@@ -2,6 +2,7 @@
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.forms.models import BaseInlineFormSet
 from django.utils.html import format_html
 
 from exam.models.option import MainExamOption, Option
@@ -20,30 +21,31 @@ class QuestionInline(admin.TabularInline):
     extra = 10
 
 
+class MainExamOptionInlineFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+
+        if any(self.errors):
+            return
+
+        correct_options = [
+            form
+            for form in self.forms
+            if form.cleaned_data.get("is_correct")
+            and not form.cleaned_data.get("DELETE", False)
+        ]
+        if len(correct_options) > 1:
+            raise ValidationError(
+                "Only one option can be marked as correct for a question."
+            )
+
+
 class MainExamOptionInline(admin.TabularInline):
     model = MainExamOption
+    formset = MainExamOptionInlineFormSet
+    fields = ("option", "is_correct")
     extra = 1
     readonly_fields = ("is_correct_display",)
-
-    def clean_formset(self, formset):
-        super().clean_formset(formset)
-        parent_instance = self.parent_instance
-
-        if parent_instance:
-            # Collect all options that are about to be saved
-            options_to_validate = [
-                form.instance
-                for form in formset.forms
-                if form.instance.pk or form.cleaned_data
-            ]
-
-            # Ensure only one option is marked as correct
-            correct_options = [opt for opt in options_to_validate if opt.is_correct]
-
-            if len(correct_options) > 1:
-                raise ValidationError(
-                    "Only one option can be marked as correct for a question."
-                )
 
     def save_formset(self, request, form, formset, change):
         # Save the parent instance first if necessary

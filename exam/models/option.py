@@ -45,10 +45,12 @@ class MainExamOption(models.Model):
 
     def clean(self):
         super().clean()
-        if self.is_correct:
+        if self.is_correct and self.question_id is not None:
             correct_options = MainExamOption.objects.filter(
-                question=self.question, is_correct=True
-            ).exclude(pk=self.pk)
+                question_id=self.question_id, is_correct=True
+            )
+            if self.pk is not None:
+                correct_options = correct_options.exclude(pk=self.pk)
             if correct_options.exists():
                 raise ValidationError(
                     "Only one option can be marked as correct for a question."
