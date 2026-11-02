@@ -15,6 +15,7 @@ from . import views
 from .models import MainExamOption, MainExamProgress, MainExamQuestion, Payment
 from .models.user_registration import (
     DocumentValidation,
+    MainExamRegistration,
     RegistrationDistrict,
     RegistrationPanchayat,
     RegistrationState,
@@ -23,6 +24,59 @@ from .models.user_registration import (
 from web import views as web_views
 
 User = get_user_model()
+
+
+class MainExamLoginTests(TestCase):
+    def test_missing_registration_returns_login_page_with_friendly_message(self):
+        user = User.objects.create_user(username="unregistered", password="secret")
+
+        response = self.client.post(
+            reverse("exam:main_exam_login"),
+            {"username": user.username, "password": "secret"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Main Exam registration was not found for this account. Please complete registration and payment first.",
+        )
+        self.assertFalse(MainExamRegistration.objects.exists())
+
+    def test_invalid_credentials_keep_login_page_and_show_normal_message(self):
+        user = User.objects.create_user(username="registered", password="secret")
+        MainExamRegistration.objects.create(
+            user=user,
+            username="registered-main-exam",
+            password="correct-password",
+            mobile="9000000001",
+        )
+
+        response = self.client.post(
+            reverse("exam:main_exam_login"),
+            {"username": "registered-main-exam", "password": "wrong-password"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Invalid username or password")
+
+    def test_valid_registered_candidate_proceeds_to_document_validation(self):
+        user = User.objects.create_user(username="candidate", password="secret")
+        MainExamRegistration.objects.create(
+            user=user,
+            username="candidate-main-exam",
+            password="main-exam-password",
+            mobile="9000000002",
+        )
+
+        response = self.client.post(
+            reverse("exam:main_exam_login"),
+            {
+                "username": "candidate-main-exam",
+                "password": "main-exam-password",
+            },
+        )
+
+        self.assertRedirects(response, reverse("exam:document_validation"), fetch_redirect_response=False)
 
 
 class MainExamRoutingTests(SimpleTestCase):

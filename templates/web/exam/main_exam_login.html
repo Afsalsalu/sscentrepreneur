@@ -107,6 +107,13 @@
     <div class="form-wrap"> 
         <h4 id="title" class="text-center">Main Exam Login User</h4>
         <hr>
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert {% if 'error' in message.tags %}alert-danger{% else %}alert-info{% endif %}" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
         <form method="post" id="login-form" action="{% url 'exam:main_exam_login' %}">
             {% csrf_token %}
             <div class="row">

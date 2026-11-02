@@ -2077,9 +2077,17 @@ def main_exam_login(request):
         username = request.POST.get('username')
         password = request.POST.get('password')
 
-        user_now = MainExamRegistration.objects.get(username=username)
-        if user_now.password == password:
-            return redirect('exam:document_validation')
+        try:
+            user_now = MainExamRegistration.objects.get(username=username)
+        except MainExamRegistration.DoesNotExist:
+            messages.error(
+                request,
+                "Main Exam registration was not found for this account. Please complete registration and payment first.",
+            )
+        else:
+            if user_now.password == password:
+                return redirect('exam:document_validation')
+            messages.error(request, "Invalid username or password")
     return render(request,"web/exam/main_exam_login.html")
 
 def congratulations_view(request):
