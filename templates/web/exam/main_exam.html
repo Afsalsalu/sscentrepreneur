@@ -146,7 +146,14 @@
             <h2 id="camera-monitoring-heading" class="visually-hidden">Camera monitoring</h2>
             <div class="camera-monitoring-label">Camera Monitoring</div>
             <div id="camera-monitoring-status" class="camera-monitoring-status" role="status" aria-live="polite">
-                Camera monitoring setup in progress...
+                Checking camera...
+            </div>
+            <div id="camera-selection" class="camera-selection" hidden>
+                <label for="camera-device-select">Camera for monitoring</label>
+                <select id="camera-device-select" class="form-select form-select-sm">
+                    <option value="">Select a camera</option>
+                </select>
+                <p id="camera-selection-help" class="camera-selection-help">Select the camera that will be used for monitoring.</p>
             </div>
             <div id="monitoring-warning-count" class="camera-monitoring-warning-count" aria-live="polite">
                 Warnings: 0 / 3

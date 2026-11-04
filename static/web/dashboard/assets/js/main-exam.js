@@ -14,6 +14,10 @@ const IDENTITY_VERIFICATION_RESPONSE_ERROR = TEMPORARY_CONNECTION_MESSAGE;
 const WARNING_COOLDOWN_MS = 8000;
 const MAX_WARNINGS = 3;
 const INFERENCE_INTERVAL_MS = 100;
+const MONITORING_READINESS_TIMEOUT_MS = 10000;
+const MAX_CONSECUTIVE_INFERENCE_FAILURES = 3;
+const MONITORING_BLOCKING_MESSAGE =
+    "Camera monitoring could not start. Select a working camera and retry before starting the exam.";
 const WARNING_RULES = {
     noFace: {
         message: "Face not visible. Please sit in front of the camera.",
@@ -62,6 +66,18 @@ let activeWarning = null;
 let warningCount = 0;
 let warningTerminationStarted = false;
 let cameraStoppedIncidentActive = false;
+let selectedDeviceId = null;
+let cameraDevices = [];
+let cameraDeviceTokens = new Map();
+let cameraSelectionRequired = false;
+let cameraPermissionGranted = false;
+let monitoringBlocked = true;
+let monitoringAttemptId = 0;
+let consecutiveInferenceFailures = 0;
+let timerId = null;
+let timeRemaining = 3600;
+let monitoringPreparationInProgress = false;
+let deviceChangeQueued = false;
 const warningQueue = [];
 const warningCooldowns = new Map();
 const warningRecords = [];
@@ -73,6 +89,10 @@ const examForm = document.getElementById("main-exam-form");
 const submitButton = document.getElementById("submit-btn");
 const video = document.getElementById("video-preview");
 const statusElement = document.getElementById("camera-monitoring-status");
+const examShell = document.querySelector(".main-exam-shell");
+const cameraSelection = document.getElementById("camera-selection");
+const cameraDeviceSelect = document.getElementById("camera-device-select");
+const cameraSelectionHelp = document.getElementById("camera-selection-help");
 const setupError = document.getElementById("monitoring-setup-error");
 const setupErrorMessage = document.getElementById("monitoring-setup-error-message");
 const retryMonitoringButton = document.getElementById("retry-monitoring-btn");
@@ -178,13 +198,57 @@ function setStatus(message, state = "ready") {
     statusElement.dataset.state = state;
 }
 
+function setExamInteractionEnabled(enabled) {
+    if (examShell?.classList) examShell.classList.toggle("exam-monitoring-blocked", !enabled);
+
+    document.querySelectorAll("#examSection input, #examSection button").forEach((control) => {
+        control.disabled = !enabled;
+    });
+
+    document.querySelectorAll("#examSection .question-nav-item").forEach((item) => {
+        item.setAttribute("aria-disabled", String(!enabled));
+        item.tabIndex = enabled ? 0 : -1;
+    });
+}
+
+function isStreamLive(stream = mediaStream) {
+    const tracks = stream?.getVideoTracks?.() || [];
+    return tracks.length > 0 && tracks.every((track) => track.readyState === "live") && stream.active !== false;
+}
+
+function isVideoReadyForMonitoring(stream = mediaStream) {
+    return Boolean(
+        isStreamLive(stream)
+        && video
+        && video.srcObject === stream
+        && video.readyState >= 2
+        && video.videoWidth > 0
+        && video.videoHeight > 0
+    );
+}
+
+function clearExamTimer() {
+    if (timerId !== null) {
+        window.clearInterval(timerId);
+        timerId = null;
+    }
+}
+
+function setMonitoringBlocked(message = MONITORING_BLOCKING_MESSAGE) {
+    monitoringReady = false;
+    monitoringActive = false;
+    monitoringBlocked = true;
+    setExamInteractionEnabled(false);
+    showSetupError(message);
+}
+
 function showSetupError(message) {
     if (setupErrorMessage) setupErrorMessage.textContent = message;
     if (setupError) setupError.hidden = false;
-    setStatus("Camera monitoring setup required", "error");
-    if (startButton && !examStarted) {
+    setStatus("Camera monitoring could not start", "error");
+    if (startButton) {
         startButton.disabled = true;
-        startButton.textContent = "Camera monitoring required";
+        if (!examStarted) startButton.textContent = "Camera monitoring required";
     }
 }
 
@@ -193,9 +257,10 @@ function hideSetupError() {
 }
 
 function stopCamera() {
-    if (!mediaStream) return;
+    const stream = mediaStream || video?.srcObject;
+    if (!stream) return;
 
-    mediaStream.getTracks().forEach((track) => {
+    stream.getTracks().forEach((track) => {
         track.onended = null;
         track.onmute = null;
         track.stop();
@@ -220,7 +285,10 @@ function cleanupCameraAndMonitoring() {
     if (cleanupStarted) return;
     cleanupStarted = true;
     monitoringActive = false;
+    monitoringBlocked = true;
+    setExamInteractionEnabled(false);
     stopMonitoringLoop();
+    clearExamTimer();
     stopCamera();
     setStatus("Camera monitoring stopped", "stopped");
 }
@@ -455,14 +523,11 @@ function processFaceResult(result, now) {
 }
 
 function handleMonitoringFailure(message, showWarning = true) {
-    if (cameraStoppedIncidentActive) return;
+    if (cameraStoppedIncidentActive && monitoringBlocked) return;
     cameraStoppedIncidentActive = true;
-    monitoringActive = false;
     stopMonitoringLoop();
     stopCamera();
-    setStatus("Camera monitoring stopped", "error");
-    showSetupError(message);
-    if (showWarning && examStarted) enqueueWarning("cameraStopped", 0);
+    setMonitoringBlocked(message || MONITORING_BLOCKING_MESSAGE);
 }
 
 function scheduleInference() {
@@ -474,6 +539,11 @@ function runInference(now) {
     monitoringLoopId = null;
     if (!monitoringActive || !faceLandmarker || !video || cleanupStarted) return;
 
+    if (!isVideoReadyForMonitoring(mediaStream)) {
+        handleMonitoringFailure(MONITORING_BLOCKING_MESSAGE);
+        return;
+    }
+
     if (now - lastInferenceAt >= INFERENCE_INTERVAL_MS && video.readyState >= 2) {
         lastInferenceAt = now;
         const timestampMs = Math.max(Math.round(now), lastVideoTimestamp + 1);
@@ -482,29 +552,35 @@ function runInference(now) {
         try {
             const result = faceLandmarker.detectForVideo(video, timestampMs);
             processFaceResult(result, now);
+            consecutiveInferenceFailures = 0;
         } catch (error) {
-            console.error("MediaPipe monitoring error:", error);
-            handleMonitoringFailure("MediaPipe monitoring stopped. Please retry camera monitoring setup.");
-            return;
+            consecutiveInferenceFailures += 1;
+            if (consecutiveInferenceFailures >= MAX_CONSECUTIVE_INFERENCE_FAILURES) {
+                console.error("MediaPipe monitoring error after repeated inference failures", {
+                    errorName: error?.name || "Error",
+                });
+                handleMonitoringFailure(MONITORING_BLOCKING_MESSAGE);
+                return;
+            }
         }
     }
 
     scheduleInference();
 }
 
-function attachStreamFailureHandlers(stream) {
+function attachStreamFailureHandlers(stream, attemptId) {
+    const handleStreamFailure = () => {
+        if (!cleanupStarted && mediaStream === stream && monitoringAttemptId === attemptId) {
+            handleMonitoringFailure(MONITORING_BLOCKING_MESSAGE);
+        }
+    };
+
     stream.getTracks().forEach((track) => {
-        track.onended = () => {
-            if (!cleanupStarted) handleMonitoringFailure("Camera monitoring stopped. Please reconnect or allow camera access.");
-        };
-        track.onmute = () => {
-            if (!cleanupStarted) handleMonitoringFailure("Camera monitoring stopped. Please reconnect or allow camera access.");
-        };
+        track.onended = handleStreamFailure;
+        track.onmute = handleStreamFailure;
     });
 
-    stream.addEventListener("inactive", () => {
-        if (!cleanupStarted) handleMonitoringFailure("Camera monitoring stopped. Please reconnect or allow camera access.");
-    });
+    stream.addEventListener("inactive", handleStreamFailure);
 }
 
 async function loadFaceLandmarker() {
@@ -539,64 +615,312 @@ async function loadFaceLandmarker() {
     }
 }
 
-async function startCamera() {
+function readableCameraLabel(device, index) {
+    const label = String(device?.label || "").trim();
+    return label || `Camera ${index + 1}`;
+}
+
+function renderCameraChoices(forceSelection = false) {
+    if (!cameraDeviceSelect || !cameraSelection) return;
+
+    cameraDeviceTokens = new Map();
+    cameraDeviceSelect.replaceChildren();
+
+    const showSelector = cameraDevices.length > 1 || forceSelection;
+    cameraSelection.hidden = !showSelector;
+    if (!showSelector) {
+        cameraSelectionRequired = false;
+        if (cameraDevices.length === 1) selectedDeviceId = cameraDevices[0].deviceId;
+        return;
+    }
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Select a camera";
+    cameraDeviceSelect.appendChild(placeholder);
+
+    cameraDevices.forEach((device, index) => {
+        const token = `camera-${index + 1}`;
+        cameraDeviceTokens.set(token, device.deviceId);
+        const option = document.createElement("option");
+        option.value = token;
+        option.textContent = readableCameraLabel(device, index);
+        cameraDeviceSelect.appendChild(option);
+    });
+
+    const selectedChoice = cameraDevices.find((device) => device.deviceId === selectedDeviceId);
+    if (selectedChoice && !forceSelection) {
+        const selectedIndex = cameraDevices.indexOf(selectedChoice);
+        cameraDeviceSelect.value = `camera-${selectedIndex + 1}`;
+        cameraSelectionRequired = false;
+    } else {
+        selectedDeviceId = null;
+        cameraDeviceSelect.value = "";
+        cameraSelectionRequired = true;
+    }
+
+    if (cameraSelectionHelp) {
+        cameraSelectionHelp.textContent = cameraSelectionRequired
+            ? "Select the camera that will be used for monitoring, then retry."
+            : "This camera is used for the preview, monitoring, and identity verification image.";
+    }
+}
+
+async function enumerateCameras(forceSelection = false) {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+        throw new Error("This browser cannot enumerate cameras.");
+    }
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    cameraDevices = devices.filter((device) => device.kind === "videoinput");
+    if (cameraDevices.length === 0) {
+        renderCameraChoices(forceSelection);
+        throw new Error("No video camera is available.");
+    }
+
+    renderCameraChoices(forceSelection);
+    return cameraDevices;
+}
+
+async function requestCameraPermission() {
     if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("This browser does not support camera access.");
     }
 
-    stopCamera();
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-    mediaStream = stream;
-    attachStreamFailureHandlers(stream);
+    if (cameraPermissionGranted) return;
 
+    // This temporary permission probe is stopped before the selected-device
+    // stream is created. It is only needed because labels are unavailable in
+    // many browsers until camera permission has been granted.
+    const permissionStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "user" } },
+        audio: false,
+    });
+    permissionStream.getTracks().forEach((track) => track.stop());
+    cameraPermissionGranted = true;
+}
+
+function withTimeout(promise, timeoutMs, message) {
+    let timeoutId = null;
+    const timeoutPromise = new Promise((resolve, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    });
+
+    return Promise.race([promise, timeoutPromise]).finally(() => {
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+    });
+}
+
+function waitForVideoFrame(stream, attemptId) {
+    return new Promise((resolve, reject) => {
+        const deadline = Date.now() + MONITORING_READINESS_TIMEOUT_MS;
+        let settled = false;
+        let timeoutId = null;
+
+        const finish = (error) => {
+            if (settled) return;
+            settled = true;
+            if (timeoutId !== null) window.clearTimeout(timeoutId);
+            if (error) reject(error);
+            else resolve();
+        };
+
+        const check = () => {
+            if (attemptId !== monitoringAttemptId || mediaStream !== stream) {
+                finish(new Error("The camera setup attempt was replaced."));
+                return;
+            }
+            if (!isStreamLive(stream)) {
+                finish(new Error("The selected camera stream is not live."));
+                return;
+            }
+            if (isVideoReadyForMonitoring(stream)) {
+                finish();
+                return;
+            }
+            if (Date.now() >= deadline) {
+                finish(new Error("The camera did not produce a video frame."));
+                return;
+            }
+            window.setTimeout(check, 50);
+        };
+
+        timeoutId = window.setTimeout(() => {
+            finish(new Error("The camera did not produce a video frame."));
+        }, MONITORING_READINESS_TIMEOUT_MS);
+        check();
+    });
+}
+
+async function startSelectedCamera(attemptId) {
+    if (!selectedDeviceId || cameraSelectionRequired) {
+        throw new Error("A monitoring camera must be selected.");
+    }
+
+    stopCamera();
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+            deviceId: { exact: selectedDeviceId },
+        },
+        audio: false,
+    });
+
+    if (attemptId !== monitoringAttemptId) {
+        stream.getTracks().forEach((track) => track.stop());
+        throw new Error("The camera setup attempt was replaced.");
+    }
+
+    mediaStream = stream;
+    attachStreamFailureHandlers(stream, attemptId);
     video.srcObject = stream;
     video.hidden = false;
     await video.play();
-    if (video.readyState < 2) {
-        await new Promise((resolve, reject) => {
-            const timeoutId = window.setTimeout(() => reject(new Error("The camera did not produce a video frame.")), 5000);
-            video.addEventListener("loadeddata", () => {
-                window.clearTimeout(timeoutId);
-                resolve();
-            }, { once: true });
-        });
+    await waitForVideoFrame(stream, attemptId);
+    return stream;
+}
+
+async function verifySelectedStream(attemptId) {
+    if (attemptId !== monitoringAttemptId || !isVideoReadyForMonitoring(mediaStream)) {
+        throw new Error("The selected camera is not ready for monitoring.");
     }
+
+    const timestampMs = Math.max(1, Math.round(performance.now()));
+    const result = faceLandmarker.detectForVideo(video, timestampMs);
+    checkMediaPipeCapabilities(result);
+    lastVideoTimestamp = timestampMs;
 }
 
 async function prepareMonitoring() {
+    const attemptId = monitoringAttemptId + 1;
+    const readinessDeadline = Date.now() + MONITORING_READINESS_TIMEOUT_MS;
+    monitoringAttemptId = attemptId;
+    monitoringPreparationInProgress = true;
     cleanupStarted = false;
     monitoringReady = false;
     monitoringActive = false;
+    monitoringBlocked = true;
     capabilitiesChecked = false;
     cameraStoppedIncidentActive = false;
+    consecutiveInferenceFailures = 0;
+    stopMonitoringLoop();
+    stopCamera();
+    setExamInteractionEnabled(false);
+    if (startButton && !examStarted) {
+        startButton.disabled = true;
+        startButton.textContent = "Preparing camera monitoring...";
+    }
+    hideSetupError();
+    setStatus("Checking camera...", "loading");
+    if (cameraDeviceSelect) cameraDeviceSelect.disabled = true;
     Object.values(conditionState).forEach((condition) => {
         condition.since = null;
         condition.warned = false;
     });
-    hideSetupError();
-    setStatus("Preparing camera monitoring...", "loading");
 
     try {
-        await loadFaceLandmarker();
-        await startCamera();
-        const capabilityProbe = faceLandmarker.detectForVideo(video, Math.max(1, Math.round(performance.now())));
-        checkMediaPipeCapabilities(capabilityProbe);
+        const remainingTimeout = () => Math.max(1, readinessDeadline - Date.now());
+        await withTimeout(requestCameraPermission(), remainingTimeout(), MONITORING_BLOCKING_MESSAGE);
+        await withTimeout(enumerateCameras(), remainingTimeout(), MONITORING_BLOCKING_MESSAGE);
+        if (cameraSelectionRequired || !selectedDeviceId) {
+            throw new Error("A monitoring camera must be selected.");
+        }
+
+        setStatus("Loading monitoring engine...", "loading");
+        await withTimeout(loadFaceLandmarker(), remainingTimeout(), MONITORING_BLOCKING_MESSAGE);
+        setStatus("Checking camera...", "loading");
+        await withTimeout(startSelectedCamera(attemptId), remainingTimeout(), MONITORING_BLOCKING_MESSAGE);
+        await withTimeout(verifySelectedStream(attemptId), remainingTimeout(), MONITORING_BLOCKING_MESSAGE);
+
         monitoringReady = true;
+        monitoringBlocked = false;
+        cameraStoppedIncidentActive = false;
         if (examStarted) {
             monitoringActive = true;
-            setStatus("Camera monitoring active", "active");
+            setExamInteractionEnabled(true);
+            setStatus("Camera monitoring is active", "active");
             monitoringLoopId = requestAnimationFrame(runInference);
         } else {
-            setStatus("Camera monitoring ready", "ready");
+            setStatus("Camera monitoring is ready", "ready");
             startButton.disabled = false;
             startButton.textContent = "Start Exam";
         }
+        hideSetupError();
     } catch (error) {
-        console.error("Camera monitoring setup error:", error);
+        if (attemptId !== monitoringAttemptId) return;
+        console.error("Camera monitoring setup error", { errorName: error?.name || "Error" });
+        if (["NotAllowedError", "SecurityError", "NotFoundError", "OverconstrainedError"].includes(error?.name)) {
+            cameraPermissionGranted = false;
+        }
         stopMonitoringLoop();
         stopCamera();
-        showSetupError("Camera monitoring could not be started. Please allow camera access and retry.");
+        setMonitoringBlocked(MONITORING_BLOCKING_MESSAGE);
+    } finally {
+        if (attemptId === monitoringAttemptId) {
+            monitoringPreparationInProgress = false;
+            if (cameraDeviceSelect) cameraDeviceSelect.disabled = false;
+            if (deviceChangeQueued) {
+                deviceChangeQueued = false;
+                handleDeviceChange();
+            }
+        }
     }
+}
+
+async function handleDeviceChange() {
+    if (cleanupStarted) return;
+    if (monitoringPreparationInProgress) {
+        deviceChangeQueued = true;
+        return;
+    }
+
+    const previousSelectedDeviceId = selectedDeviceId;
+    const previousDeviceCount = cameraDevices.length;
+    try {
+        const devices = await enumerateCameras(
+            Boolean(examStarted && previousSelectedDeviceId && !cameraDevices.some((device) => device.deviceId === previousSelectedDeviceId))
+        );
+        const selectedStillExists = Boolean(
+            previousSelectedDeviceId && devices.some((device) => device.deviceId === previousSelectedDeviceId)
+        );
+
+        if (previousSelectedDeviceId && !selectedStillExists) {
+            selectedDeviceId = null;
+            renderCameraChoices(true);
+            if (examStarted) {
+                handleMonitoringFailure(MONITORING_BLOCKING_MESSAGE);
+            } else {
+                stopCamera();
+                setMonitoringBlocked(MONITORING_BLOCKING_MESSAGE);
+            }
+            return;
+        }
+
+        if (!examStarted && previousDeviceCount <= 1 && devices.length > 1) {
+            stopCamera();
+            selectedDeviceId = null;
+            renderCameraChoices(true);
+            setMonitoringBlocked(MONITORING_BLOCKING_MESSAGE);
+        }
+    } catch (error) {
+        console.error("Camera device enumeration failed", { errorName: error?.name || "Error" });
+        handleMonitoringFailure(MONITORING_BLOCKING_MESSAGE);
+    }
+}
+
+function handleCameraSelectionChange() {
+    const nextDeviceId = cameraDeviceTokens.get(cameraDeviceSelect?.value);
+    if (!nextDeviceId) {
+        selectedDeviceId = null;
+        cameraSelectionRequired = true;
+        stopMonitoringLoop();
+        stopCamera();
+        setMonitoringBlocked(MONITORING_BLOCKING_MESSAGE);
+        return;
+    }
+
+    selectedDeviceId = nextDeviceId;
+    cameraSelectionRequired = false;
+    prepareMonitoring();
 }
 
 async function captureIdentityImageFromExistingStream() {
@@ -661,15 +985,22 @@ async function verifyIdentityAndHandleFailure() {
 }
 
 function startExam() {
-    if (!monitoringReady || !mediaStream) return;
+    if (!monitoringReady || monitoringBlocked || !isVideoReadyForMonitoring(mediaStream)) {
+        stopMonitoringLoop();
+        stopCamera();
+        setMonitoringBlocked(MONITORING_BLOCKING_MESSAGE);
+        return;
+    }
 
     hideConnectionIssue();
     examStarted = true;
     monitoringActive = true;
+    setExamInteractionEnabled(true);
     setStatus("Camera monitoring active", "active");
     initialDiv.hidden = true;
     examSection.hidden = false;
     monitoringLoopId = requestAnimationFrame(runInference);
+    startTimer();
 
     runIdentityVerification().catch((error) => {
         console.error("Identity verification failed", { errorName: error?.name || "Error" });
@@ -705,7 +1036,7 @@ function initializeQuestionNavigation() {
 
 function startTimer() {
     const timerElement = document.querySelector(".timer");
-    let timeRemaining = 3600;
+    if (!timerElement || timerId !== null) return;
 
     const updateTimer = () => {
         if (timeRemaining <= 0) {
@@ -722,18 +1053,19 @@ function startTimer() {
     };
 
     updateTimer();
-    const timerId = window.setInterval(() => {
+    timerId = window.setInterval(() => {
         if (cleanupStarted) {
-            window.clearInterval(timerId);
+            clearExamTimer();
             return;
         }
+        if (!examStarted || monitoringBlocked || !monitoringActive) return;
         updateTimer();
     }, 1000);
 }
 
 function initializeSubmission() {
     examForm.addEventListener("submit", (event) => {
-        if (submissionStarted) {
+        if (submissionStarted || monitoringBlocked || !monitoringReady || !monitoringActive) {
             event.preventDefault();
             return;
         }
@@ -750,6 +1082,12 @@ retryMonitoringButton.addEventListener("click", () => {
     prepareMonitoring();
 });
 
+cameraDeviceSelect?.addEventListener("change", handleCameraSelectionChange);
+
+if (navigator.mediaDevices?.addEventListener) {
+    navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
+}
+
 warningDismissButton.addEventListener("click", dismissWarning);
 retryIdentityButton?.addEventListener("click", verifyIdentityAndHandleFailure);
 retryIdentityWarningButton?.addEventListener("click", retryIdentityFromWarning);
@@ -761,6 +1099,6 @@ window.addEventListener("beforeunload", cleanupCameraAndMonitoring, { once: true
 document.addEventListener("DOMContentLoaded", () => {
     initializeQuestionNavigation();
     initializeSubmission();
-    startTimer();
+    setExamInteractionEnabled(false);
     prepareMonitoring();
 });
